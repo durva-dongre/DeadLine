@@ -46,14 +46,6 @@ interface ScrapedData {
   images: string[];
 }
 
-const EVENT_DETAILS_TEMPLATE = {
-  location: "string - Detailed location information including city, state/province, country, specific venues, addresses, and geographical context",
-  details: "string - Comprehensive detailed narrative of what happened, including background context, sequence of events, circumstances leading up to the incident, what specifically occurred, immediate aftermath, ongoing developments, legal proceedings, investigations, evidence found, witness testimonies, official statements, media coverage details, public reactions, and all significant aspects of the event",
-  accused: ["array of strings - Full names of all accused parties, suspects, defendants, organizations, companies, or entities involved, including their roles, positions, backgrounds, and relationship to the incident"],
-  victims: ["array of strings - Full names and detailed information about all victims, affected parties, casualties, injured persons, including their ages, backgrounds, conditions, and impact suffered"],
-  timeline: ["array of strings - Comprehensive chronological sequence of events with specific dates, times, and detailed descriptions of what happened at each stage, including pre-incident events, the main incident phases, immediate response, investigation milestones, legal proceedings, and ongoing developments"]
-};
-
 function isValidJSON(str: string): boolean {
   try {
     JSON.parse(str);
@@ -71,6 +63,9 @@ function isHTMLResponse(response: string): boolean {
 function extractArticleContent(html: string, url: string): ScrapedArticle {
   let cleanHtml = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
   cleanHtml = cleanHtml.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+  cleanHtml = cleanHtml.replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '');
+  cleanHtml = cleanHtml.replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '');
+  cleanHtml = cleanHtml.replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '');
   
   const titleMatch = cleanHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
   const title = titleMatch ? titleMatch[1].trim() : '';
@@ -78,25 +73,43 @@ function extractArticleContent(html: string, url: string): ScrapedArticle {
   const metaDescMatch = cleanHtml.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>/i);
   const metaContent = metaDescMatch ? metaDescMatch[1] : '';
   
-  const articleMatches = cleanHtml.match(/<(?:article|main|div[^>]*class=["'][^"']*(?:content|article|post|story|news)[^"']*["'])[^>]*>([\s\S]*?)<\/(?:article|main|div)>/gi);
+  const articleMatches = cleanHtml.match(/<(?:article|main|div[^>]*class=["'][^"']*(?:content|article|post|story|news|entry|body)[^"']*["'])[^>]*>([\s\S]*?)<\/(?:article|main|div)>/gi);
   let content = '';
   
   if (articleMatches && articleMatches.length > 0) {
     const longestMatch = articleMatches.reduce((a, b) => a.length > b.length ? a : b);
-    content = longestMatch.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    content = longestMatch
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
   }
   
-  if (!content || content.length < 200) {
-    const paragraphs = cleanHtml.match(/<p[^>]*>([^<]+)<\/p>/gi);
-    if (paragraphs) {
-      content = paragraphs.map(p => p.replace(/<[^>]*>/g, '')).join(' ').trim();
+  if (!content || content.length < 300) {
+    const paragraphs = cleanHtml.match(/<p[^>]*>([^<]+(?:<[^p][^>]*>[^<]*<\/[^>]*>[^<]*)*)<\/p>/gi);
+    if (paragraphs && paragraphs.length > 0) {
+      content = paragraphs
+        .map(p => p.replace(/<[^>]*>/g, ' ').trim())
+        .filter(p => p.length > 50)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
   }
   
   if (!content || content.length < 200) {
-    const divMatches = cleanHtml.match(/<div[^>]*>([^<]*(?:<[^\/][^>]*>[^<]*<\/[^>]*>[^<]*)*)<\/div>/gi);
+    const divMatches = cleanHtml.match(/<div[^>]*class=["'][^"']*(?:text|content|article)[^"']*["'][^>]*>([^<]*(?:<[^\/][^>]*>[^<]*<\/[^>]*>[^<]*)*)<\/div>/gi);
     if (divMatches) {
-      const textContent = divMatches.map(div => div.replace(/<[^>]*>/g, ' ')).join(' ').trim();
+      const textContent = divMatches
+        .map(div => div.replace(/<[^>]*>/g, ' ').trim())
+        .filter(t => t.length > 50)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
       if (textContent.length > content.length) {
         content = textContent;
       }
@@ -112,7 +125,7 @@ function extractArticleContent(html: string, url: string): ScrapedArticle {
   return {
     url,
     title,
-    content: content.substring(0, 4000),
+    content: content.substring(0, 5000),
     publishDate: '',
     author: '',
     source
@@ -122,30 +135,45 @@ function extractArticleContent(html: string, url: string): ScrapedArticle {
 async function scrapeArticle(url: string): Promise<ScrapedArticle | null> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Connection': 'keep-alive',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Upgrade-Insecure-Requests': '1',
       },
-      signal: controller.signal
+      signal: controller.signal,
+      redirect: 'follow',
     });
     
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      console.warn(`Failed to fetch ${url}: ${response.status}`);
+      console.warn(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
       return null;
     }
     
     const html = await response.text();
+    
+    if (!html || html.length < 100) {
+      console.warn(`Insufficient content from ${url}`);
+      return null;
+    }
+    
     return extractArticleContent(html, url);
     
   } catch (error) {
-    console.warn(`Error scraping ${url}:`, error);
+    if (error instanceof Error) {
+      console.warn(`Error scraping ${url}: ${error.message}`);
+    }
     return null;
   }
 }
@@ -295,16 +323,25 @@ async function searchGoogleAndScrape(query: string): Promise<ScrapedData> {
       const url = result.link.toLowerCase();
       const domain = result.displayLink?.toLowerCase() || '';
       
-      const excludeDomains = ['reddit.com', 'twitter.com', 'facebook.com', 'youtube.com', 'instagram.com', 'tiktok.com', 'pinterest.com'];
-      const isExcluded = excludeDomains.some(excluded => domain.includes(excluded) || url.includes(excluded));
+      const blockDomains = ['tiktok.com', 'pinterest.com', 'facebook.com', 'twitter.com', 'instagram.com', 'youtube.com'];
+      const isBlocked = blockDomains.some(blocked => domain.includes(blocked) || url.includes(blocked));
       
-      return !isExcluded && result.title && result.snippet;
+      return !isBlocked && result.title && result.snippet;
     });
 
     console.log(`Filtered to ${filteredResults.length} valid results`);
 
-    const articlesToScrape = filteredResults.slice(0, 18);
-    console.log(`Scraping content from ${articlesToScrape.length} articles...`);
+    const redditResults = filteredResults.filter(r => 
+      r.displayLink?.toLowerCase().includes('reddit.com') || r.link.toLowerCase().includes('reddit.com')
+    ).slice(0, 2);
+    
+    const nonRedditResults = filteredResults.filter(r => 
+      !r.displayLink?.toLowerCase().includes('reddit.com') && !r.link.toLowerCase().includes('reddit.com')
+    );
+
+    const articlesToScrape = [...nonRedditResults.slice(0, 16), ...redditResults].slice(0, 18);
+    
+    console.log(`Scraping content from ${articlesToScrape.length} articles (including max ${redditResults.length} Reddit)...`);
     
     const scrapePromises = articlesToScrape.map(result => scrapeArticle(result.link));
     const scrapedArticles = await Promise.allSettled(scrapePromises);
@@ -339,9 +376,9 @@ async function processArticlesWithGroq(scrapedData: ScrapedData, query: string):
     .slice(0, 15);
 
   const articleContent = topArticles.map((article, index) => {
-    const contentToUse = article.content.substring(0, 3500);
+    const contentToUse = article.content.substring(0, 4000);
     return `
-=== ARTICLE ${index + 1}: ${article.source.toUpperCase()} ===
+=== SOURCE ${index + 1}: ${article.source.toUpperCase()} ===
 Title: ${article.title}
 URL: ${article.url}
 Content: ${contentToUse}
@@ -349,49 +386,68 @@ Content: ${contentToUse}
   }).join('\n\n');
 
   const topSnippets = scrapedData.results
-    .slice(0, 10)
+    .slice(0, 15)
     .map((result, index) => `${index + 1}. [${result.displayLink}] ${result.title}: ${result.snippet}`)
     .join('\n');
 
-  const prompt = `Extract *exhaustive and comprehensive* structured information about: "${query}"
+  const prompt = `You are a factual data extraction system. Extract comprehensive information about: "${query}"
 
-ARTICLES:
+SOURCES:
 ${articleContent}
 
 SNIPPETS:
 ${topSnippets}
 
-*CRITICAL: Extract MAXIMUM detail for EVERY field. Your response must be extremely thorough, comprehensive, and packed with ALL available information.*
+CRITICAL: You must respond with ONLY valid JSON. No preamble, no explanation, no markdown formatting, no backticks. Start with { and end with }.
 
-*LOCATION*: Extract *complete geographical context* including exact addresses, specific venue names, building details, city, state/province, country, regional context, nearby landmarks, facility descriptions, and any location-specific circumstances. *Be exhaustive*.
+EXTRACTION RULES:
+- Extract ONLY verifiable facts from sources
+- Include all specifics: names, ages, numbers, dates, charges, statute codes, amounts, locations
+- Each person = separate array entry (accused and victims)
+- Use **highlights** on 2-3 word phrases ONLY for the most critical facts (charges, verdicts, death counts, bail amounts)
+- Keep highlights sparse: 2-3 in details section, at least 1 in accused/victims/timeline entries
+- Write complete, detailed sentences with maximum factual density
+- Escape all quotes inside strings using backslash
 
-*DETAILS*: Provide an *extensive, comprehensive narrative* covering: complete background and historical context, detailed circumstances leading to the event, step-by-step chronological sequence of what happened, *all parties involved* with their roles and relationships, *specific actions and decisions* made by each party, *detailed investigation findings* and evidence discovered, *complete legal proceedings* including charges and court information, *all official statements* and press releases, *witness testimonies* and accounts, *media coverage specifics*, *public reactions* and social impact, *current ongoing status*, *consequences and impact* on all parties, *any controversies or disputes*, and *conflicting information* if present. *Include specific quotes, statistics, and facts wherever available*. This section should be the *most detailed and comprehensive* part of your response.
+JSON STRUCTURE (respond with this exact format):
+{
+  "location": "string",
+  "details": "string",
+  "accused": ["string per person"],
+  "victims": ["string per person"],
+  "timeline": ["string per event"]
+}
 
-*ACCUSED*: List *ALL individuals, organizations, or entities* with: complete full names and any known aliases, exact positions and titles held, professional background and history, *detailed description of their involvement* and role in the incident, *specific charges or allegations* against them, relevant background information, *their responses or statements*, current legal status, and *any additional context* about each party.
+FIELD SPECIFICATIONS:
 
-*VICTIMS*: Provide *comprehensive information* about all affected parties including: full names where available, ages and demographic details, personal background information, *detailed description of harm or impact suffered*, current condition and status, *their relationship to the incident*, how they were specifically affected, *statements from victims or families*, and *ongoing impact* on their lives.
+location: City, State/Province, Country. For lesser-known: (X km from Major City)
 
-*TIMELINE*: Create an *extremely detailed chronological sequence* with: exact dates and specific times when available, *comprehensive descriptions of what occurred at each stage*, pre-incident background events and context, *step-by-step progression* of the main incident with granular detail, immediate response and emergency actions, *investigation milestones* with dates, *legal proceedings timeline* including court dates and decisions, media coverage evolution, public reaction timeline, and *all ongoing developments*. Each timeline entry should be *highly descriptive* with multiple sentences explaining what happened.
+details: One compelling headline sentence. Then comprehensive coverage in 800-1200 words covering background context, the incident chronologically with exact times and locations, all parties involved with full details, investigation specifics including evidence and testimonies, legal proceedings with exact charges and statute numbers, official statements from authorities, witness accounts, media coverage and public reaction, current status of all proceedings, and outcomes. Use **2-3 word highlights** sparingly on critical facts only.
 
-*EXTRACTION REQUIREMENTS*:
-- *Maximize information density* in every field
-- Include *specific names, dates, times, places, and numbers*
-- Use *direct quotes* from sources when impactful
-- Provide *extensive detail* rather than summaries
-- Extract *ALL available information* from the articles
-- Be *thorough and comprehensive* above all else
-- *Details field should be 1000+ words* when sufficient source material exists
-- *Timeline should have 10+ detailed entries* when information is available
+accused: Array with separate entry per person. Each entry 150-250 words: Full legal name with aliases, exact age/DOB, occupation/title, employer, business affiliations, residential address, education, specific criminal role and involvement level, relationship to victims/co-accused, complete charges with statute numbers, additional charges, plea entered, bail amount and reasoning, bail status, legal representation with attorney names, custody location and facility, custody conditions, prior record, co-conspirators, trial date, aggravating factors, mitigating circumstances, statements made. Use **highlights** sparingly on critical facts.
 
-Return *ONLY* valid JSON matching this structure:
+victims: Array with separate entry per person. Each entry 150-250 words: Full legal name if released, exact age/DOB, gender, occupation/title, employer, residential location, education, family details with names and ages, relationship to accused, location during incident, complete injury description with medical terminology or cause of death, immediate medical response, emergency services, hospital names, specific surgeries/procedures with dates, ICU status, current condition and prognosis, recovery timeline, permanent disabilities, psychological trauma, impact on dependents, financial impact, victim advocacy involvement, impact statements. Use **highlights** sparingly on critical facts.
 
-${JSON.stringify(EVENT_DETAILS_TEMPLATE, null, 2)}
+timeline: Array with separate entry per date. Each entry format "Month Day, Year: 6-10 detailed sentences" covering what happened, individuals involved and roles, precise locations with addresses, specific actions step-by-step, evidence discovered with details, official responses, witness observations, legal filings with case numbers, media reports, community reactions, specific times if available. Use **2-3 word highlights** sparingly on critical facts only.
 
-Use *only explicit information* from provided content. *Maximize detail extraction* while maintaining accuracy. Use empty strings/arrays only when data is genuinely unavailable.`;
+REQUIREMENTS:
+- Details: 800-1200 words minimum
+- Accused entries: 150-250 words each
+- Victim entries: 150-250 words each
+- Timeline entries: 6-10 sentences each
+- Highlights: 2-3 words max, used sparingly
+- No speculation—only verified facts
+- Escape all quotes in strings
+
+RESPOND WITH ONLY THE JSON OBJECT. NO OTHER TEXT.`;
 
   try {
     const completion = await groq.chat.completions.create({
       messages: [
+        {
+          role: "system",
+          content: "You are a precise data extraction system. You MUST respond with ONLY valid JSON. No markdown, no backticks, no preamble, no explanation. Start your response with { and end with }. Ensure all strings are properly escaped."
+        },
         {
           role: "user",
           content: prompt,
@@ -407,29 +463,48 @@ Use *only explicit information* from provided content. *Maximize detail extracti
       throw new Error('No response from Groq API');
     }
 
-    const cleanedResponse = response.trim();
+    let cleanedResponse = response.trim();
+    
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/```\s*$/, '');
+    }
+    
+    cleanedResponse = cleanedResponse.trim();
+    
     const jsonStart = cleanedResponse.indexOf('{');
     const jsonEnd = cleanedResponse.lastIndexOf('}') + 1;
     
     if (jsonStart === -1 || jsonEnd === 0) {
+      console.error('No JSON object found in response. First 500 chars:', cleanedResponse.substring(0, 500));
       throw new Error('Invalid JSON response from Groq - no JSON object found');
     }
     
     const jsonString = cleanedResponse.substring(jsonStart, jsonEnd);
     
-    if (!isValidJSON(jsonString)) {
-      console.error('Invalid JSON from Groq:', jsonString.substring(0, 500));
-      throw new Error('Invalid JSON format from Groq response');
+    let parsedData;
+    try {
+      parsedData = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('First 1000 chars of JSON string:', jsonString.substring(0, 1000));
+      console.error('Last 500 chars of JSON string:', jsonString.substring(Math.max(0, jsonString.length - 500)));
+      throw new Error(`Invalid JSON format from Groq response: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
     }
-
-    const parsedData = JSON.parse(jsonString);
     
     const requiredFields: (keyof Omit<EventDetails, 'images' | 'sources'>)[] = ['location', 'details', 'accused', 'victims', 'timeline'];
     for (const field of requiredFields) {
       if (!(field in parsedData)) {
-        parsedData[field] = Array.isArray(EVENT_DETAILS_TEMPLATE[field]) ? [] : '';
+        parsedData[field] = Array.isArray(['accused', 'victims', 'timeline'].includes(field)) ? [] : '';
       }
     }
+    
+    console.log('Groq analysis complete:');
+    console.log(`- Details length: ${parsedData.details?.length || 0} characters`);
+    console.log(`- Accused entries: ${parsedData.accused?.length || 0}`);
+    console.log(`- Victim entries: ${parsedData.victims?.length || 0}`);
+    console.log(`- Timeline entries: ${parsedData.timeline?.length || 0}`);
     
     return parsedData;
     
