@@ -22,6 +22,7 @@ interface TimelineEntry {
 }
 
 interface PartyDetails {
+  name: string;
   summary: string;
   details?: KeyFact[];
 }
@@ -158,16 +159,25 @@ export default async function EventPage({ params }: { params: { id: string } }) 
     notFound();
   }
 
-  const safeEventDetails = {
+  const safeEventDetails: EventDetails = {
     ...eventDetails,
     images: Array.isArray(eventDetails.images) ? eventDetails.images : [],
     sources: Array.isArray(eventDetails.sources) ? eventDetails.sources : [],
     location: eventDetails.location || 'Unknown Location',
     headline: eventDetails.headline || 'Event Details',
     details: eventDetails.details || { overview: 'No details available', keyPoints: [] },
-    accused: eventDetails.accused || { individuals: [], organizations: [] },
-    victims: eventDetails.victims || { individuals: [], groups: [] },
+    accused: {
+      individuals: Array.isArray(eventDetails.accused?.individuals) ? eventDetails.accused.individuals : [],
+      organizations: Array.isArray(eventDetails.accused?.organizations) ? eventDetails.accused.organizations : [],
+    },
+    victims: {
+      individuals: Array.isArray(eventDetails.victims?.individuals) ? eventDetails.victims.individuals : [],
+      groups: Array.isArray(eventDetails.victims?.groups) ? eventDetails.victims.groups : [],
+    },
     timeline: Array.isArray(eventDetails.timeline) ? eventDetails.timeline : [],
+    event_id: eventDetails.event_id,
+    created_at: eventDetails.created_at,
+    updated_at: eventDetails.updated_at,
   };
 
   const safeEventUpdates = Array.isArray(eventUpdates) ? eventUpdates : [];
