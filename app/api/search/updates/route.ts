@@ -177,13 +177,18 @@ async function revalidateEventCache(event_id: string, apiKey: string): Promise<v
       return;
     }
 
-    const revalidateUrl = `${baseUrl}/api/revalidate?api_key=${apiKey}&event_id=${event_id}`;
+    const revalidateUrl = `${baseUrl}/api/revalidate`;
     
     const response = await fetch(revalidateUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        api_key: apiKey,
+        event_id: event_id,
+        revalidate_main: true
+      })
     });
 
     if (!response.ok) {
