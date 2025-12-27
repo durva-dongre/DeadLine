@@ -1,5 +1,4 @@
 import { EventsClient } from './events-client';
-import { createClient } from '@supabase/supabase-js';
 
 interface Event {
   event_id: number;
@@ -15,23 +14,17 @@ interface Event {
 
 async function getEvents(): Promise<Event[]> {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/get/events`, {
+      cache: 'no-store',
+    });
     
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('incident_date', { ascending: false, nullsFirst: false })
-      .order('last_updated', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching events:', error);
+    if (!response.ok) {
+      console.error('Failed to fetch events:', response.statusText);
       return [];
     }
     
-    return (data as Event[]) || [];
+    const data = await response.json();
+    return data.events || [];
   } catch (error) {
     console.error('Error fetching events:', error);
     return [];
