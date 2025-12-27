@@ -27,7 +27,13 @@ async function getEvents(): Promise<Event[]> {
     }
     
     const data = await response.json();
-    return data.events || [];
+    const events = data.events || [];
+    
+    return events.sort((a: Event, b: Event) => {
+      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+      return dateB - dateA;
+    });
   } catch (error) {
     console.error('Error fetching events:', error);
     return [];

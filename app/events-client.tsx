@@ -1,4 +1,3 @@
-// events-client.tsx
 'use client';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -59,13 +58,20 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   const categories = ['All', 'Justice', 'Injustice'];
 
   const filteredEvents = useMemo(() => {
-    if (activeFilter === 'All') return initialEvents;
+    let filtered = initialEvents;
     
-    return initialEvents.filter(event => {
-      const statusLower = event.status.toLowerCase();
-      const filterLower = activeFilter.toLowerCase();
-      
-      return statusLower === filterLower;
+    if (activeFilter !== 'All') {
+      filtered = initialEvents.filter(event => {
+        const statusLower = event.status.toLowerCase();
+        const filterLower = activeFilter.toLowerCase();
+        return statusLower === filterLower;
+      });
+    }
+    
+    return filtered.sort((a, b) => {
+      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+      return dateB - dateA;
     });
   }, [initialEvents, activeFilter]);
 
@@ -117,7 +123,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       setHasMore(filteredEvents.length > ITEMS_PER_PAGE);
       setIsInitializing(false);
     }, 100);
-
     return () => clearTimeout(timer);
   }, [filteredEvents]);
 
