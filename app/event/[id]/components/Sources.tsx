@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useMemo } from 'react';
 
 interface SourcesProps {
@@ -62,7 +60,7 @@ export default function SourcesComponent({ sources }: SourcesProps) {
 
   const sourceDataList = useMemo(() => {
     if (!sources || sources.length === 0) return [];
-
+    
     return sources
       .filter(source => {
         try {

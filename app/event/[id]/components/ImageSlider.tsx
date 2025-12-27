@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 interface ImageSliderProps {
   images: string[];
@@ -10,21 +8,22 @@ export default function ImageSlider({ images }: ImageSliderProps) {
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
   const [imageLoading, setImageLoading] = useState<Record<number, boolean>>({});
   const sliderRef = useRef<HTMLDivElement>(null);
-  const [extendedImages, setExtendedImages] = useState<string[]>([]);
   const loadTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
 
+  const extendedImages = useMemo(() => {
+    if (!images || images.length === 0) return [];
+    return [...images, ...images, ...images];
+  }, [images]);
+
   useEffect(() => {
-    if (images && images.length > 0) {
-      const duplicated = [...images, ...images, ...images];
-      setExtendedImages(duplicated);
-      
+    if (extendedImages.length > 0) {
       const loadingState: Record<number, boolean> = {};
-      duplicated.forEach((_, idx) => {
+      extendedImages.forEach((_, idx) => {
         loadingState[idx] = true;
       });
       setImageLoading(loadingState);
     }
-  }, [images]);
+  }, [extendedImages]);
 
   useEffect(() => {
     const slider = sliderRef.current;
@@ -44,16 +43,16 @@ export default function ImageSlider({ images }: ImageSliderProps) {
       }
     };
 
-    slider.addEventListener('scroll', handleScroll);
+    slider.addEventListener('scroll', handleScroll, { passive: true });
     
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       if (slider) {
         const slideWidth = 280;
         const gap = 12;
         const itemWidth = slideWidth + gap;
         slider.scrollLeft = images.length * itemWidth;
       }
-    }, 100);
+    });
 
     return () => {
       slider.removeEventListener('scroll', handleScroll);
@@ -107,7 +106,8 @@ export default function ImageSlider({ images }: ImageSliderProps) {
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch'
+            WebkitOverflowScrolling: 'touch',
+            willChange: 'scroll-position'
           }}
         >
           {extendedImages.map((image, index) => (

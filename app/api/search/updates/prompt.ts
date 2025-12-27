@@ -12,84 +12,55 @@ export function buildUpdateAnalysisPrompt(
   lastUpdateDate: string
 ): string {
   const searchContent = searchResults.map((result, index) => 
-    `Result ${index + 1}:
-Title: ${result.title}
-Snippet: ${result.snippet}
-Link: ${result.link}
-Published: ${result.publishedDate || 'Date not available'}
-Full Article Content:
-${result.fullContent || 'Content not available'}
+    `${index + 1}. ${result.title}
+${result.snippet}
+${result.link}
+${result.publishedDate || 'N/A'}
+${result.fullContent || 'N/A'}
 ---`
-  ).join('\n\n');
+  ).join('\n');
 
-  return `Analyze developments for: "${query}" occurring AFTER ${lastUpdateDate}
+  return `Analyze "${query}" developments AFTER ${lastUpdateDate}
 
-Return ONLY valid JSON. Start with { and end with }.
+Return ONLY valid JSON starting with { and ending with }
 
-Expected JSON Structure:
+JSON Structure:
 {
   "has_new_updates": true,
+  "status": "Justice/Injustice",
   "updates": [
     {
       "date": "YYYY-MM-DD",
-      "title": "Concise headline summarizing the development",
-      "description": "Comprehensive narrative covering all key details, context, implications, and specific data points from the article"
+      "title": "What happened (not case name)",
+      "description": "Compact summary with all key facts, numbers, names. Use **keyword** once for most important term."
     }
   ]
 }
 
-CRITICAL REQUIREMENTS:
+RULES:
 
-1. DATE FILTERING:
-   - Read ALL full article content provided
-   - Extract ONLY content published AFTER ${lastUpdateDate}
-   - If NO content after ${lastUpdateDate} exists, return: {"has_new_updates": false, "updates": []}
+1. FILTERING: Only content AFTER ${lastUpdateDate}. If none: {"has_new_updates": false, "updates": []}
 
-2. DATE GROUPING:
-   - Group findings by publication date
-   - Create SEPARATE update object for EACH distinct date
-   - Each update represents ONE specific date only
-   - Sort updates chronologically from oldest to newest
+2. GROUPING: One update per date. Sort chronologically oldest→newest.
 
-3. DATE FIELD:
-   - Must be YYYY-MM-DD format
-   - Must match the article's actual publication date
-   - Do NOT use generic dates or date ranges
+3. DATE: YYYY-MM-DD format matching publication date.
 
-4. TITLE FIELD:
-   - Must be newsworthy and specific to that date's development
-   - Should capture the most significant aspect of the update
-   - Be concise but informative
-   - Do NOT use generic titles like "Update for [Date]"
+4. TITLE: Describe the development itself, NOT case name. Be specific and newsworthy.
 
-5. DESCRIPTION FIELD:
-   - Write a comprehensive narrative covering that date's developments
-   - Include specific data, facts, numbers, names, and timestamps
-   - Provide context and explain significance
-   - Discuss implications and potential impact
-   - Synthesize information from full article content published on that date
-   - Write in clear, professional prose
-   - Aim for thoroughness while maintaining readability
+5. DESCRIPTION: 
+   - Concise but complete facts
+   - Include specific data, numbers, names
+   - Use **bold** ONCE on 2-3 word key term only
+   - Escape quotes with \
 
-6. CONTENT REQUIREMENTS:
-   - Do NOT combine multiple dates into one update
-   - Do NOT include information from before ${lastUpdateDate}
-   - Focus on changes, new developments, and specific events
-   - Use exact numbers, complete names, precise data points
-   - Include specific timestamps when available
-   - Properly escape quotes with backslash in JSON
+6. STATUS: Analyze overall outcome, set "Justice" or "Injustice"
 
-7. QUALITY STANDARDS:
-   - Prioritize accuracy over quantity
-   - Ensure each update adds meaningful information
-   - Avoid speculation or assumptions
-   - Base all content on provided article text
-   - Maintain journalistic objectivity
+7. CONTENT: No speculation. Use exact article data. Professional tone.
 
-LAST UPDATE DATE: ${lastUpdateDate}
+LAST UPDATE: ${lastUpdateDate}
 
-SEARCH RESULTS TO ANALYZE:
+RESULTS:
 ${searchContent}
 
-Return ONLY the JSON object. No preamble, no explanation, just the JSON.`;
+Return JSON only.`;
 }

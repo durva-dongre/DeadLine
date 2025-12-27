@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useRef } from 'react';
 
 interface KeyFact {
@@ -109,7 +107,7 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
   const updatesContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
+    const timer = setTimeout(() => setLoading(false), 0);
     return () => clearTimeout(timer);
   }, []);
 
@@ -131,7 +129,10 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
         }
       };
 
-      setTimeout(calculateHeights, 200);
+      requestAnimationFrame(() => {
+        calculateHeights();
+      });
+
       window.addEventListener('resize', calculateHeights);
       return () => window.removeEventListener('resize', calculateHeights);
     }

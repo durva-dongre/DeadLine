@@ -28,6 +28,7 @@ interface Event {
   event_id: number;
   query: string;
   last_updated: string;
+  status: string;
 }
 
 interface DateUpdate {
@@ -38,6 +39,7 @@ interface DateUpdate {
 
 interface GroqAnalysisResponse {
   has_new_updates: boolean;
+  status: 'Justice' | 'Injustice';
   updates: DateUpdate[];
 }
 
@@ -60,6 +62,8 @@ interface DebugInfo {
   last_updated_date: string | null;
   days_since_last_update: number;
   has_new_content: boolean;
+  dates_scanned: number;
+  links_per_date: Record<string, number>;
 }
 
 interface GoogleSearchResult {
@@ -147,6 +151,25 @@ async function fetchPageContent(url: string): Promise<string> {
   }
 }
 
+function selectLinksToScan(results: GoogleSearchResult[], maxPerDate: number = 3): GoogleSearchResult[] {
+  const dateGroups = new Map<string, GoogleSearchResult[]>();
+  
+  results.forEach(result => {
+    const dateKey = result.publishedDate ? result.publishedDate.split('T')[0] : 'unknown';
+    if (!dateGroups.has(dateKey)) {
+      dateGroups.set(dateKey, []);
+    }
+    dateGroups.get(dateKey)!.push(result);
+  });
+  
+  const selected: GoogleSearchResult[] = [];
+  dateGroups.forEach((dateResults) => {
+    selected.push(...dateResults.slice(0, maxPerDate));
+  });
+  
+  return selected;
+}
+
 async function processEventUpdate(event_id: string, apiKey: string) {
   const startTime = Date.now();
   const debugInfo: DebugInfo = {
@@ -160,7 +183,9 @@ async function processEventUpdate(event_id: string, apiKey: string) {
     filtered_results_count: 0,
     last_updated_date: null,
     days_since_last_update: 0,
-    has_new_content: false
+    has_new_content: false,
+    dates_scanned: 0,
+    links_per_date: {}
   };
 
   try {
@@ -192,7 +217,7 @@ async function processEventUpdate(event_id: string, apiKey: string) {
     const eventFetchStart = Date.now();
     const { data: eventData, error: eventError } = await supabase
       .from('events')
-      .select('event_id, query, last_updated')
+      .select('event_id, query, last_updated, status')
       .eq('event_id', eventIdNumber)
       .single();
     
@@ -237,9 +262,22 @@ async function processEventUpdate(event_id: string, apiKey: string) {
       });
     }
 
+    // Select limited links per date
+    const selectedResults = selectLinksToScan(filteredResults, 3);
+    
+    // Track dates and links per date
+    const dateCount = new Map<string, number>();
+    selectedResults.forEach(result => {
+      const dateKey = result.publishedDate ? result.publishedDate.split('T')[0] : 'unknown';
+      dateCount.set(dateKey, (dateCount.get(dateKey) || 0) + 1);
+    });
+    
+    debugInfo.dates_scanned = dateCount.size;
+    debugInfo.links_per_date = Object.fromEntries(dateCount);
+
     const webFetchStart = Date.now();
     const resultsWithContent = await Promise.all(
-      filteredResults.map(async (result) => ({
+      selectedResults.map(async (result) => ({
         ...result,
         fullContent: await fetchPageContent(result.link)
       }))
@@ -284,14 +322,43 @@ async function processEventUpdate(event_id: string, apiKey: string) {
       }, { status: 500 });
     }
 
+    // Update event status and last_updated
     const mostRecentUpdateDate = analysis.updates[analysis.updates.length - 1].date;
     const { error: updateError } = await supabase
       .from('events')
-      .update({ last_updated: mostRecentUpdateDate })
+      .update({ 
+        last_updated: mostRecentUpdateDate,
+        status: analysis.status
+      })
       .eq('event_id', event.event_id);
 
     if (updateError) {
       console.error('Error updating events table:', updateError);
+    }
+
+    // Update event_details sources
+    const newSources = selectedResults.map(r => r.link);
+    const { data: existingDetails } = await supabase
+      .from('event_details')
+      .select('sources')
+      .eq('event_id', event_id.toString())
+      .single();
+
+    const currentSources = existingDetails?.sources || [];
+    const uniqueSources = Array.from(new Set([...currentSources, ...newSources]));
+
+    const { error: detailsError } = await supabase
+      .from('event_details')
+      .upsert({
+        event_id: event_id.toString(),
+        sources: uniqueSources,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'event_id'
+      });
+
+    if (detailsError) {
+      console.error('Error updating event_details:', detailsError);
     }
 
     debugInfo.total_processing_time = Date.now() - startTime;
@@ -299,11 +366,13 @@ async function processEventUpdate(event_id: string, apiKey: string) {
     return NextResponse.json({
       success: true,
       message: `${analysis.updates.length} updates created successfully`,
+      status: analysis.status,
       updates: updateRecords,
       analysis: analysis,
-      new_articles_processed: filteredResults.length,
+      new_articles_processed: selectedResults.length,
       total_search_results: searchResults.length,
       updates_by_date: analysis.updates.length,
+      new_sources_added: newSources.length,
       debug: debugInfo
     });
 
@@ -364,6 +433,8 @@ async function searchGoogleForUpdates(
 ): Promise<GoogleSearchResult[]> {
   try {
     const daysSinceUpdate = Math.ceil((Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Increase results to 20 for better coverage across multiple dates
     const searchParams = {
       key: process.env.GOOGLE_API_KEY,
       cx: process.env.GOOGLE_SEARCH_ENGINE_ID,
@@ -433,7 +504,11 @@ async function analyzeWithGroq(
     const analysisResult = JSON.parse(completion.choices[0].message.content);
     
     if (!analysisResult.has_new_updates || !analysisResult.updates || analysisResult.updates.length === 0) {
-      return { has_new_updates: false, updates: [] };
+      return { 
+        has_new_updates: false, 
+        status: analysisResult.status || 'Injustice',
+        updates: [] 
+      };
     }
 
     const validUpdates = analysisResult.updates.filter((update: DateUpdate) => 
@@ -441,10 +516,18 @@ async function analyzeWithGroq(
     );
 
     if (validUpdates.length === 0) {
-      return { has_new_updates: false, updates: [] };
+      return { 
+        has_new_updates: false, 
+        status: analysisResult.status || 'Injustice',
+        updates: [] 
+      };
     }
 
-    return { has_new_updates: true, updates: validUpdates };
+    return { 
+      has_new_updates: true, 
+      status: analysisResult.status || 'Injustice',
+      updates: validUpdates 
+    };
   } catch (error) {
     return null;
   }

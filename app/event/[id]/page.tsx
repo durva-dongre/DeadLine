@@ -89,12 +89,13 @@ async function getEventDetails(id: string): Promise<EventDetails | null> {
 
     const response = await fetch(url, {
       next: { 
-        revalidate: 3600,
+        revalidate: false,
         tags: [`event-${id}`]
       },
       headers: {
         'Content-Type': 'application/json',
       },
+      cache: 'force-cache'
     });
 
     if (!response.ok) {
@@ -127,12 +128,13 @@ async function getEventUpdates(id: string): Promise<EventUpdate[]> {
       `${baseUrl}/api/get/updates?event_id=${id}&api_key=${apiKey}`,
       {
         next: { 
-          revalidate: 3600,
+          revalidate: false,
           tags: [`event-updates-${id}`]
         },
         headers: {
           'Content-Type': 'application/json',
         },
+        cache: 'force-cache'
       }
     );
 
@@ -148,7 +150,8 @@ async function getEventUpdates(id: string): Promise<EventUpdate[]> {
   }
 }
 
-export const revalidate = 3600;
+export const dynamic = 'force-static';
+export const revalidate = false;
 
 export default async function EventPage({ 
   params 
