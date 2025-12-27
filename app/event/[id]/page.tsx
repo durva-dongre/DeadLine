@@ -3,7 +3,6 @@ import { Metadata } from 'next';
 import ImageSlider from '../components/ImageSlider';
 import EventDetailsComponent from '../components/EventDetails';
 import SourcesComponent from '../components/Sources';
-import { revalidateTag } from 'next/cache';
 
 interface KeyFact {
   label: string;

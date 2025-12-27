@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 
-export const dynamic = 'force-static';
-export const revalidate = false;
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -29,6 +28,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const urlHash = Buffer.from(decodedUrl).toString('base64');
+
     const response = await fetch(decodedUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
         'Sec-Fetch-Mode': 'navigate',
         'Sec-Fetch-Site': 'none',
         'Cache-Control': 'max-age=0',
+      },
+      next: {
+        tags: [`source-title-${urlHash}`],
+        revalidate: false
       },
       cache: 'force-cache',
       signal: AbortSignal.timeout(15000),

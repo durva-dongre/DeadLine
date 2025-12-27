@@ -205,7 +205,7 @@ export default function SourcesComponent({ sources }: SourcesProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
         {sourcesData.map((sourceData, index) => (
           <SourceCard 
-            key={`${sourceData.url}-${index}`} 
+            key={`${sourceData.url}-${index}`}
             sourceData={sourceData}
           />
         ))}
