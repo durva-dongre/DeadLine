@@ -138,9 +138,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   }, []);
 
   const getStatusColor = useCallback((status: string) => {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'justice') return 'bg-green-600 text-white';
-    if (statusLower === 'injustice') return 'bg-red-600 text-white';
     return 'bg-black text-white';
   }, []);
 
