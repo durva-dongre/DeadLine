@@ -11,14 +11,13 @@ export default function ImageSlider({ images }: ImageSliderProps) {
   const [imageLoading, setImageLoading] = useState<Record<number, boolean>>({});
   const sliderRef = useRef<HTMLDivElement>(null);
   const [extendedImages, setExtendedImages] = useState<string[]>([]);
+  const loadTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({});
 
   useEffect(() => {
     if (images && images.length > 0) {
-      // Create infinite scroll by duplicating images
       const duplicated = [...images, ...images, ...images];
       setExtendedImages(duplicated);
       
-      // Initialize loading state for all images
       const loadingState: Record<number, boolean> = {};
       duplicated.forEach((_, idx) => {
         loadingState[idx] = true;
@@ -36,22 +35,17 @@ export default function ImageSlider({ images }: ImageSliderProps) {
       const gap = 12;
       const itemWidth = slideWidth + gap;
       const scrollLeft = slider.scrollLeft;
-      const maxScroll = slider.scrollWidth - slider.clientWidth;
       const sectionWidth = images.length * itemWidth;
 
-      // When scrolling right past the second set
       if (scrollLeft >= sectionWidth * 2 - itemWidth) {
         slider.scrollLeft = sectionWidth;
-      }
-      // When scrolling left before the first set
-      else if (scrollLeft <= itemWidth) {
+      } else if (scrollLeft <= itemWidth) {
         slider.scrollLeft = sectionWidth + itemWidth;
       }
     };
 
     slider.addEventListener('scroll', handleScroll);
     
-    // Start at the middle section
     setTimeout(() => {
       if (slider) {
         const slideWidth = 280;
@@ -61,16 +55,31 @@ export default function ImageSlider({ images }: ImageSliderProps) {
       }
     }, 100);
 
-    return () => slider.removeEventListener('scroll', handleScroll);
+    return () => {
+      slider.removeEventListener('scroll', handleScroll);
+      Object.values(loadTimeoutRef.current).forEach(timeout => clearTimeout(timeout));
+    };
   }, [extendedImages, images.length]);
 
   const handleImageError = (index: number) => {
+    if (loadTimeoutRef.current[index]) {
+      clearTimeout(loadTimeoutRef.current[index]);
+    }
     setImageErrors(prev => ({ ...prev, [index]: true }));
     setImageLoading(prev => ({ ...prev, [index]: false }));
   };
 
   const handleImageLoad = (index: number) => {
+    if (loadTimeoutRef.current[index]) {
+      clearTimeout(loadTimeoutRef.current[index]);
+    }
     setImageLoading(prev => ({ ...prev, [index]: false }));
+  };
+
+  const handleImageStart = (index: number) => {
+    loadTimeoutRef.current[index] = setTimeout(() => {
+      setImageLoading(prev => ({ ...prev, [index]: false }));
+    }, 10000);
   };
 
   if (!images || images.length === 0) {
@@ -115,12 +124,16 @@ export default function ImageSlider({ images }: ImageSliderProps) {
                 <img
                   src={image}
                   alt={`Gallery image ${(index % images.length) + 1}`}
-                  className="w-full h-full object-cover select-none"
-                  style={{ display: imageLoading[index] ? 'none' : 'block' }}
+                  className={`w-full h-full object-cover select-none transition-opacity duration-300 ${
+                    imageLoading[index] ? 'opacity-0' : 'opacity-100'
+                  }`}
+                  onLoadStart={() => handleImageStart(index)}
                   onLoad={() => handleImageLoad(index)}
                   onError={() => handleImageError(index)}
                   draggable={false}
-                  loading="lazy"
+                  loading={index < images.length ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchpriority={index < 3 ? 'high' : 'auto'}
                 />
               </div>
             )

@@ -1,7 +1,5 @@
 'use client';
-
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 interface Event {
@@ -53,16 +51,19 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
   const observerTarget = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const ITEMS_PER_PAGE = 30;
-  const categories = ['All', 'Justice', 'Politics', 'Society', 'Breaking'];
+  const categories = ['All', 'Justice', 'Injustice', 'Society'];
 
   const filteredEvents = useMemo(() => {
+    if (activeFilter === 'All') return initialEvents;
+    
     return initialEvents.filter(event => {
-      if (activeFilter === 'All') return true;
-      return event.tags?.some(tag => tag.toLowerCase().includes(activeFilter.toLowerCase())) ||
-             event.status.toLowerCase().includes(activeFilter.toLowerCase());
+      const filterLower = activeFilter.toLowerCase();
+      return event.tags?.some(tag => tag.toLowerCase().includes(filterLower)) ||
+             event.status.toLowerCase().includes(filterLower);
     });
   }, [initialEvents, activeFilter]);
 
@@ -79,7 +80,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       setPage(nextPage);
       setHasMore(endIndex < filteredEvents.length);
       setLoadingMore(false);
-    }, 500);
+    }, 200);
   }, [filteredEvents, page, loadingMore, hasMore]);
 
   useEffect(() => {
@@ -89,7 +90,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
           loadMoreEvents();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: '400px' }
     );
     
     const currentTarget = observerTarget.current;
@@ -105,9 +106,17 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   }, [loadMoreEvents, hasMore, loadingMore]);
 
   useEffect(() => {
-    setDisplayedEvents(filteredEvents.slice(0, ITEMS_PER_PAGE));
-    setPage(1);
-    setHasMore(filteredEvents.length > ITEMS_PER_PAGE);
+    setIsInitializing(true);
+    
+    const timer = setTimeout(() => {
+      const initialBatch = filteredEvents.slice(0, ITEMS_PER_PAGE);
+      setDisplayedEvents(initialBatch);
+      setPage(1);
+      setHasMore(filteredEvents.length > ITEMS_PER_PAGE);
+      setIsInitializing(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [filteredEvents]);
 
   const formatDate = useCallback((dateString: string | null) => {
@@ -159,68 +168,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       </section>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {displayedEvents.map((event) => (
-            <article 
-              key={event.event_id} 
-              onClick={() => handleEventClick(event.event_id)}
-              className="group cursor-pointer"
-            >
-              <div className="relative h-64 mb-6 overflow-hidden bg-gray-100">
-                <Image
-                  src={event.image_url || '/api/placeholder/400/300'}
-                  alt={event.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/api/placeholder/400/300';
-                  }}
-                  priority={false}
-                />
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs font-normal tracking-widest text-black font-mono">
-                  <time>{formatDate(event.incident_date)}</time>
-                  <span className="bg-black text-white px-2 py-1 tracking-wide">
-                    {getStatusLabel(event.status)}
-                  </span>
-                </div>
-                <h3 className="text-xl font-bold tracking-tight text-black leading-tight transition-colors text-justify" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-                  {event.title}
-                </h3>
-                <p className="text-black font-normal leading-relaxed text-sm line-clamp-3 text-justify font-mono">
-                  {event.summary || 'Breaking story developing...'}
-                </p>
-                {event.tags && event.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {event.tags.slice(0, 2).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="text-xs font-normal text-black border border-black px-2 py-1 tracking-wide font-mono"
-                      >
-                        {tag.toUpperCase()}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-
-        {loadingMore && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
-            {[...Array(6)].map((_, index) => (
-              <EventCardSkeleton key={`loading-${index}`} />
+        {isInitializing ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(9)].map((_, index) => (
+              <EventCardSkeleton key={`init-skeleton-${index}`} />
             ))}
           </div>
-        )}
-
-        <div ref={observerTarget} className="h-10" />
-
-        {displayedEvents.length === 0 && (
+        ) : displayedEvents.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-black font-normal tracking-wide text-lg font-mono">
               NO STORIES MATCH YOUR FILTER
@@ -232,6 +186,69 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
               VIEW ALL STORIES
             </button>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {displayedEvents.map((event, index) => (
+                <article 
+                  key={event.event_id} 
+                  onClick={() => handleEventClick(event.event_id)}
+                  className="group cursor-pointer"
+                >
+                  <div className="relative h-64 mb-6 overflow-hidden bg-gray-100">
+                    <img
+                      src={event.image_url || '/api/placeholder/400/300'}
+                      alt={event.title}
+                      loading={index < 9 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      fetchPriority={index < 3 ? 'high' : 'auto'}
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/api/placeholder/400/300';
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between text-xs font-normal tracking-widest text-black font-mono">
+                      <time>{formatDate(event.incident_date)}</time>
+                      <span className="bg-black text-white px-2 py-1 tracking-wide">
+                        {getStatusLabel(event.status)}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold tracking-tight text-black leading-tight transition-colors text-justify" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                      {event.title}
+                    </h3>
+                    <p className="text-black font-normal leading-relaxed text-sm line-clamp-3 text-justify font-mono">
+                      {event.summary || 'Breaking story developing...'}
+                    </p>
+                    {event.tags && event.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {event.tags.slice(0, 2).map((tag, index) => (
+                          <span
+                            key={index}
+                            className="text-xs font-normal text-black border border-black px-2 py-1 tracking-wide font-mono"
+                          >
+                            {tag.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {loadingMore && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
+                {[...Array(6)].map((_, index) => (
+                  <EventCardSkeleton key={`loading-${index}`} />
+                ))}
+              </div>
+            )}
+
+            <div ref={observerTarget} className="h-10" />
+          </>
         )}
       </main>
     </>

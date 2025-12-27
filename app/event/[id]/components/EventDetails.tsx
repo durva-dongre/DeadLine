@@ -88,7 +88,7 @@ function HighlightedText({ text }: { text: string }) {
         if (part.startsWith('**') && part.endsWith('**')) {
           const cleanText = part.slice(2, -2);
           return (
-            <span key={index} className="bg-black text-white px-1 py-0.5 mx-0.5">
+            <span key={index} className="bg-black text-white px-1 py-0.5 mx-0.5 font-mono">
               {cleanText}
             </span>
           );
@@ -116,12 +116,10 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
   useEffect(() => {
     if (!loading) {
       const calculateHeights = () => {
-        // Get the actual content heights (scrollHeight gives full content height)
         const accusedHeight = accusedContentRef.current?.scrollHeight || 0;
         const victimsHeight = victimsContentRef.current?.scrollHeight || 0;
         
         if (accusedHeight > 0 && victimsHeight > 0) {
-          // Add padding for header (about 60px for header + padding)
           setPartiesHeight(Math.min(accusedHeight, victimsHeight) + 80);
         }
 
@@ -158,6 +156,10 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
     ...(victims.groups || [])
   ];
 
+  const sortedKeyPoints = details.keyPoints 
+    ? [...details.keyPoints].sort((a, b) => a.value.length - b.value.length)
+    : [];
+
   const accusedNeedsScroll = partiesHeight && accusedContentRef.current && 
     accusedContentRef.current.scrollHeight > (partiesHeight - 80);
   
@@ -174,21 +176,21 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
     <div className="max-w-7xl mx-auto">
       <article className="mb-4">
         <div className="bg-white p-5 border border-black">
-          <h2 className="text-sm font-bold mb-3 uppercase tracking-tight text-black border-b border-black pb-2">
-            Overview
+          <h2 className="text-sm font-bold mb-3 uppercase tracking-tight text-black border-b border-black pb-2 font-mono">
+            OVERVIEW
           </h2>
-          <p className="text-xs leading-loose text-justify mb-4 text-black">
+          <p className="text-xs leading-loose text-justify mb-4 text-black font-mono">
             <HighlightedText text={details.overview || ''} />
           </p>
           
-          {details.keyPoints && details.keyPoints.length > 0 && (
+          {sortedKeyPoints.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-2 mt-4 pt-4 border-t border-gray-300">
-              {details.keyPoints.map((fact, index) => (
+              {sortedKeyPoints.map((fact, index) => (
                 <div key={index} className="flex items-start gap-2">
-                  <span className="bg-black text-white px-1.5 py-0.5 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap flex-shrink-0">
+                  <span className="bg-black text-white px-1.5 py-0.5 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap flex-shrink-0 font-mono">
                     {fact.label}
                   </span>
-                  <span className="text-black text-[11px] leading-relaxed flex-1">
+                  <span className="text-black text-[11px] leading-relaxed flex-1 font-mono">
                     {fact.value}
                   </span>
                 </div>
@@ -203,37 +205,43 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
           <div className="bg-white border border-black relative"
                style={{ height: partiesHeight ? `${partiesHeight}px` : 'auto' }}>
             <div className="p-4 pb-2">
-              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black">
-                Accused Parties
+              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black font-mono">
+                ACCUSED PARTIES
               </h3>
             </div>
             <div className="px-4 pb-4 overflow-y-auto scrollbar-thin"
                  style={{ height: partiesHeight ? `${partiesHeight - 70}px` : 'auto' }}>
               <div ref={accusedContentRef} className="space-y-4">
-                {allAccused.map((person, index) => (
-                  <div key={index} className="pb-4 border-b border-gray-200 last:border-b-0 last:pb-0">
-                    <h4 className="text-sm font-bold mb-2 text-black">
-                      {person.name}
-                    </h4>
-                    <p className="text-[11px] leading-relaxed text-justify mb-3 text-black">
-                      {person.summary || ''}
-                    </p>
-                    {person.details && person.details.length > 0 && (
-                      <div className="space-y-1.5 pl-2 border-l-2 border-black">
-                        {person.details.map((fact, factIndex) => (
-                          <div key={factIndex} className="flex items-start gap-2">
-                            <span className="bg-black text-white px-1.5 py-0.5 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap flex-shrink-0">
-                              {fact.label}
-                            </span>
-                            <span className="text-black text-[11px] leading-relaxed flex-1">
-                              {fact.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {allAccused.map((person, index) => {
+                  const sortedDetails = person.details
+                    ? [...person.details].sort((a, b) => a.value.length - b.value.length)
+                    : [];
+                  
+                  return (
+                    <div key={index} className="pb-4 border-b border-gray-200 last:border-b-0 last:pb-0">
+                      <h4 className="text-sm font-bold mb-2 text-black font-mono">
+                        {person.name}
+                      </h4>
+                      <p className="text-[11px] leading-relaxed text-justify mb-3 text-black font-mono">
+                        {person.summary || ''}
+                      </p>
+                      {sortedDetails.length > 0 && (
+                        <div className="space-y-1.5 pl-2 border-l-2 border-black">
+                          {sortedDetails.map((fact, factIndex) => (
+                            <div key={factIndex} className="flex items-start gap-2">
+                              <span className="bg-black text-white px-1.5 py-0.5 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap flex-shrink-0 font-mono">
+                                {fact.label}
+                              </span>
+                              <span className="text-black text-[11px] leading-relaxed flex-1 font-mono">
+                                {fact.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             {accusedNeedsScroll && (
@@ -246,37 +254,43 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
           <div className="bg-white border border-black relative"
                style={{ height: partiesHeight ? `${partiesHeight}px` : 'auto' }}>
             <div className="p-4 pb-2">
-              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black">
-                Affected Parties
+              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black font-mono">
+                AFFECTED PARTIES
               </h3>
             </div>
             <div className="px-4 pb-4 overflow-y-auto scrollbar-thin"
                  style={{ height: partiesHeight ? `${partiesHeight - 70}px` : 'auto' }}>
               <div ref={victimsContentRef} className="space-y-4">
-                {allVictims.map((victim, index) => (
-                  <div key={index} className="pb-4 border-b border-gray-200 last:border-b-0 last:pb-0">
-                    <h4 className="text-sm font-bold mb-2 text-black">
-                      {victim.name}
-                    </h4>
-                    <p className="text-[11px] leading-relaxed text-justify mb-3 text-black">
-                      {victim.summary || ''}
-                    </p>
-                    {victim.details && victim.details.length > 0 && (
-                      <div className="space-y-1.5 pl-2 border-l-2 border-black">
-                        {victim.details.map((fact, factIndex) => (
-                          <div key={factIndex} className="flex items-start gap-2">
-                            <span className="bg-black text-white px-1.5 py-0.5 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap flex-shrink-0">
-                              {fact.label}
-                            </span>
-                            <span className="text-black text-[11px] leading-relaxed flex-1">
-                              {fact.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {allVictims.map((victim, index) => {
+                  const sortedDetails = victim.details
+                    ? [...victim.details].sort((a, b) => a.value.length - b.value.length)
+                    : [];
+                  
+                  return (
+                    <div key={index} className="pb-4 border-b border-gray-200 last:border-b-0 last:pb-0">
+                      <h4 className="text-sm font-bold mb-2 text-black font-mono">
+                        {victim.name}
+                      </h4>
+                      <p className="text-[11px] leading-relaxed text-justify mb-3 text-black font-mono">
+                        {victim.summary || ''}
+                      </p>
+                      {sortedDetails.length > 0 && (
+                        <div className="space-y-1.5 pl-2 border-l-2 border-black">
+                          {sortedDetails.map((fact, factIndex) => (
+                            <div key={factIndex} className="flex items-start gap-2">
+                              <span className="bg-black text-white px-1.5 py-0.5 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap flex-shrink-0 font-mono">
+                                {fact.label}
+                              </span>
+                              <span className="text-black text-[11px] leading-relaxed flex-1 font-mono">
+                                {fact.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             {victimsNeedsScroll && (
@@ -291,8 +305,8 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
           <div className="bg-white border border-black relative"
                style={{ height: bottomHeight ? `${bottomHeight}px` : 'auto' }}>
             <div className="p-4 pb-2">
-              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black">
-                Timeline
+              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black font-mono">
+                TIMELINE
               </h3>
             </div>
             <div className="px-4 pb-4 overflow-y-auto scrollbar-thin"
@@ -306,12 +320,12 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
                       <div>
                         {entry.date && (
                           <div className="mb-2">
-                            <span className="inline-block px-1.5 py-0.5 bg-black text-white text-[10px] uppercase tracking-wide font-bold">
+                            <span className="inline-block px-1.5 py-0.5 bg-black text-white text-[10px] uppercase tracking-wide font-bold font-mono">
                               {entry.date}
                             </span>
                           </div>
                         )}
-                        <p className="text-[11px] font-bold leading-relaxed mb-2 text-black">
+                        <p className="text-[11px] font-bold leading-relaxed mb-2 text-black font-mono">
                           {entry.context}
                         </p>
                         {entry.events && entry.events.length > 0 && (
@@ -319,20 +333,20 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
                             {entry.events.map((evt, evtIndex) => (
                               <div key={evtIndex}>
                                 {evt.time && (
-                                  <span className="inline-block px-1.5 py-0.5 bg-gray-800 text-white text-[10px] mb-1">
+                                  <span className="inline-block px-1.5 py-0.5 bg-gray-800 text-white text-[10px] mb-1 font-mono">
                                     {evt.time}
                                   </span>
                                 )}
-                                <p className="text-[11px] leading-relaxed text-black mb-1">
+                                <p className="text-[11px] leading-relaxed text-black mb-1 font-mono">
                                   {evt.description}
                                 </p>
                                 {evt.participants && (
-                                  <p className="text-[10px] text-gray-600 italic mb-1">
+                                  <p className="text-[10px] text-gray-600 italic mb-1 font-mono">
                                     <span className="font-bold">Participants:</span> {evt.participants}
                                   </p>
                                 )}
                                 {evt.evidence && (
-                                  <p className="text-[10px] text-gray-600 italic">
+                                  <p className="text-[10px] text-gray-600 italic font-mono">
                                     <span className="font-bold">Evidence:</span> {evt.evidence}
                                   </p>
                                 )}
@@ -356,8 +370,8 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
           <div className="bg-white border border-black relative"
                style={{ height: bottomHeight ? `${bottomHeight}px` : 'auto' }}>
             <div className="p-4 pb-2">
-              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black">
-                Recent Updates
+              <h3 className="text-sm font-bold uppercase tracking-tight border-b border-black pb-2 mb-3 text-black font-mono">
+                RECENT UPDATES
               </h3>
             </div>
             <div className="px-4 pb-4 overflow-y-auto scrollbar-thin"
@@ -366,10 +380,10 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
                 {eventUpdates.map((update) => (
                   <article key={update.update_id} className="pb-3 border-b border-gray-200 last:border-b-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h4 className="text-xs font-bold text-black flex-1">
+                      <h4 className="text-xs font-bold text-black flex-1 font-mono">
                         {update.title}
                       </h4>
-                      <time className="text-[10px] text-white bg-black px-1.5 py-0.5 whitespace-nowrap">
+                      <time className="text-[10px] text-white bg-black px-1.5 py-0.5 whitespace-nowrap font-mono">
                         {new Date(update.update_date).toLocaleDateString('en-US', { 
                           year: 'numeric', 
                           month: 'short', 
@@ -377,7 +391,7 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
                         })}
                       </time>
                     </div>
-                    <p className="text-[11px] leading-relaxed text-justify text-black">
+                    <p className="text-[11px] leading-relaxed text-justify text-black font-mono">
                       {update.description}
                     </p>
                   </article>

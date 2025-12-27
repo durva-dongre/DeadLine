@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
-import ImageSlider from '../components/ImageSlider';
-import EventDetailsComponent from '../components/EventDetails';
-import SourcesComponent from '../components/Sources';
+import ImageSlider from './components/ImageSlider';
+import EventDetailsComponent from './components/EventDetails';
+import SourcesComponent from './components/Sources';
 
 interface KeyFact {
   label: string;
@@ -86,28 +86,24 @@ async function getEventDetails(id: string): Promise<EventDetails | null> {
     }
 
     const url = `${baseUrl}/api/get/details?event_id=${id}&api_key=${apiKey}`;
-    console.log('[getEventDetails] Fetching:', url.replace(apiKey, 'REDACTED'));
 
     const response = await fetch(url, {
-      cache: 'no-store',
+      next: { 
+        revalidate: 3600,
+        tags: [`event-${id}`]
+      },
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    console.log('[getEventDetails] Response status:', response.status);
-
     if (!response.ok) {
-      const text = await response.text();
-      console.error('[getEventDetails] Failed:', response.status, text);
       return null;
     }
 
     const result: EventDetailsResponse = await response.json();
-    console.log('[getEventDetails] Success:', result.success, 'Has data:', !!result.data);
     
     if (!result.success || !result.data) {
-      console.error('[getEventDetails] Invalid response structure');
       return null;
     }
 
@@ -130,7 +126,10 @@ async function getEventUpdates(id: string): Promise<EventUpdate[]> {
     const response = await fetch(
       `${baseUrl}/api/get/updates?event_id=${id}&api_key=${apiKey}`,
       {
-        cache: 'no-store',
+        next: { 
+          revalidate: 3600,
+          tags: [`event-updates-${id}`]
+        },
         headers: {
           'Content-Type': 'application/json',
         },
@@ -149,8 +148,7 @@ async function getEventUpdates(id: string): Promise<EventUpdate[]> {
   }
 }
 
-export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
+export const revalidate = 3600;
 
 export default async function EventPage({ 
   params 
@@ -159,15 +157,7 @@ export default async function EventPage({
 }) {
   const { id } = await params;
   
-  console.log('[EventPage] Rendering for ID:', id);
-  console.log('[EventPage] Environment check:', {
-    hasApiKey: !!process.env.API_SECRET_KEY,
-    hasBaseUrl: !!process.env.NEXT_PUBLIC_BASE_URL,
-    baseUrl: process.env.NEXT_PUBLIC_BASE_URL
-  });
-  
   if (!id) {
-    console.error('[EventPage] No ID provided');
     notFound();
   }
 
@@ -176,10 +166,7 @@ export default async function EventPage({
     getEventUpdates(id)
   ]);
 
-  console.log('[EventPage] Fetch complete. Has details:', !!eventDetails);
-
   if (!eventDetails) {
-    console.error('[EventPage] No event details found, calling notFound()');
     notFound();
   }
 
