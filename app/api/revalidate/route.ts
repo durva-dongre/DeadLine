@@ -1,6 +1,8 @@
 import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -20,9 +22,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    revalidateTag(`event-${event_id}`);
-    revalidateTag(`event-details-${event_id}`);
-    revalidateTag(`event-updates-${event_id}`);
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/internal/revalidate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tags: [
+          `event-${event_id}`,
+          `event-details-${event_id}`,
+          `event-updates-${event_id}`
+        ]
+      }),
+    });
 
     return NextResponse.json({
       success: true,
@@ -59,9 +71,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    revalidateTag(`event-${event_id}`);
-    revalidateTag(`event-details-${event_id}`);
-    revalidateTag(`event-updates-${event_id}`);
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/internal/revalidate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tags: [
+          `event-${event_id}`,
+          `event-details-${event_id}`,
+          `event-updates-${event_id}`
+        ]
+      }),
+    });
 
     return NextResponse.json({
       success: true,
