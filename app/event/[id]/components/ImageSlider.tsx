@@ -85,11 +85,11 @@ export default function ImageSlider({ images }: ImageSliderProps) {
   if (!images || images.length === 0) {
     return (
       <section className="mb-6">
-        <h3 className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black">
-          Image Gallery
+        <h3 className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black font-mono">
+          IMAGE GALLERY
         </h3>
         <div className="text-center py-6 text-gray-400">
-          <p className="text-sm">No images to display</p>
+          <p className="text-sm font-mono">No images to display</p>
         </div>
       </section>
     );
@@ -97,8 +97,8 @@ export default function ImageSlider({ images }: ImageSliderProps) {
 
   return (
     <section className="mb-6">
-      <h3 className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black">
-        Image Gallery
+      <h3 className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black font-mono">
+        IMAGE GALLERY
       </h3>
       <div className="relative">
         <div
@@ -133,7 +133,7 @@ export default function ImageSlider({ images }: ImageSliderProps) {
                   draggable={false}
                   loading={index < images.length ? 'eager' : 'lazy'}
                   decoding="async"
-                  fetchpriority={index < 3 ? 'high' : 'auto'}
+                  fetchPriority={index < 3 ? 'high' : 'auto'}
                 />
               </div>
             )
