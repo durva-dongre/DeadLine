@@ -8,7 +8,7 @@ GLOBAL FORMATTING RULES:
 - Escape all quotes with backslash
 - Include ONLY information available in sources - skip unavailable fields
 - Each fact appears once in its most logical location
-- Bold formatting (**text**) in "overview, description and summary only" field, limited to 2-3 instances for keywords or names or facts or amount or crime in overview and for other than overview only single instance and only in summary.
+- Bold formatting (**text**) in "overview, description and summary" field, limited to 2-3 instances for keywords or names or facts or amount or crime in overview and for summary and description only single instance per.
 - NO bold in any other fields (title, headlines)
 - For groups: include count in name field 
 JSON STRUCTURE:
@@ -33,7 +33,7 @@ JSON STRUCTURE:
     "individuals": [
       {
         "name": "Full accurate name (REQUIRED as first field)",
-        "summary": "3-4 compact sentences: name/aliases, age, occupation/employer, address, role in incident, actions/timeline, relationship to victims, family/criminal history, custody status.",
+        "summary": "3-4 compact sentences: name/aliases, age, occupation/employer, address, role in incident, actions/timeline, relationship to victims, family/criminal history, custody status. Bold Formating **2-3 words only** use only once.",
         "details": [
           {"label": "Accused", "value": "Accused party information"}
         ]
@@ -43,7 +43,7 @@ JSON STRUCTURE:
     "organizations": [
       {
         "name": "Full accurate organization name (REQUIRED as first field, include count if group)",
-        "summary": "3-4 compact sentences: name/registration, type/industry, jurisdiction, leadership, role, actions/failures, relationship, violations, history, response.",
+        "summary": "3-4 compact sentences: name/registration, type/industry, jurisdiction, leadership, role, actions/failures, relationship, violations, history, response. Bold Formating **2-3 words only** use only once.",
         "details": [
           {"label": "Accused", "value": "Accused party information"}
         ]
@@ -56,7 +56,7 @@ JSON STRUCTURE:
     "individuals": [
       {
         "name": "Full accurate name or description (REQUIRED as first field)",
-        "summary": "3-4 sentences: name/description, age/gender, occupation/workplace, address, relationship to accused, harm/injuries, treatment/hospital, condition/prognosis, family impact, compensation.",
+        "summary": "3-4 sentences: name/description, age/gender, occupation/workplace, address, relationship to accused, harm/injuries, treatment/hospital, condition/prognosis, family impact, compensation. Bold Formating **2-3 words only** use only once.",
         "details": [
           {"label": "Victim", "value": "Victim party information"}
         ]
@@ -66,7 +66,7 @@ JSON STRUCTURE:
     "groups": [
       {
         "name": "Accurate group description (REQUIRED as first field, include count)",
-        "summary": "3-4 compact sentences: size/demographics, composition, location/community, relationship, collective harm, impact, legal action, support.",
+        "summary": "3-4 compact sentences: size/demographics, composition, location/community, relationship, collective harm, impact, legal action, support. Bold Formating **2-3 words only** use only once.",
         "details": [
           {"label": "Victims", "value": "Victim party information"}
         ]
@@ -82,7 +82,7 @@ JSON STRUCTURE:
       "events": [
         {
           "time": "2:30 PM",
-          "description": "150-200 words: complete actions/sequence, people/roles, location/venue, evidence/items, witness statements, medical procedures, legal filings, monetary amounts, official responses, quotes, conditions, factors, aftermath.",
+          "description": "150-200 words: complete actions/sequence, people/roles, location/venue, evidence/items, witness statements, medical procedures, legal filings, monetary amounts, official responses, quotes, conditions, factors, aftermath.Bold Formating **2-3 words only** use only once.",
           "participants": "Complete list: Name (Role, Age, Occupation)",
           "evidence": "Exhaustive list with specifics"
         }
