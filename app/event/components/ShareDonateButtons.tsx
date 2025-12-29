@@ -77,10 +77,10 @@ export default function ShareDonateButtons({
 
   return (
     <>
-      <div className="flex items-center space-x-3">
+      <div className="relative flex items-center space-x-3">
         <button
           onClick={handleShare}
-          className="text-white hover:opacity-70 transition-opacity"
+          className="bg-white text-black p-2.5 rounded-lg hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
           aria-label="Share"
         >
           <svg 
@@ -104,7 +104,7 @@ export default function ShareDonateButtons({
 
         <button
           onClick={handleDonate}
-          className="text-white hover:opacity-70 transition-opacity"
+          className="bg-white text-black p-2.5 rounded-lg hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl"
           aria-label="Donate"
         >
           <svg 
@@ -129,14 +129,14 @@ export default function ShareDonateButtons({
           onClick={() => setShowShareMenu(false)}
         >
           <div 
-            className="bg-white border border-black p-6 max-w-sm w-full mx-4 animate-slideUp"
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-slideUp"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-black">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
               <h3 className="text-sm font-bold text-black uppercase tracking-wider font-mono">Share</h3>
               <button 
                 onClick={() => setShowShareMenu(false)} 
-                className="text-black hover:opacity-70"
+                className="text-black hover:bg-gray-100 rounded p-1 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/>
@@ -147,69 +147,69 @@ export default function ShareDonateButtons({
             <div className="grid grid-cols-3 gap-4 mb-4">
               <button 
                 onClick={shareOnWhatsApp}
-                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition-colors"
+                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Share on WhatsApp"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
                 </svg>
-                <span className="text-xs mt-1 font-mono">WhatsApp</span>
+                <span className="text-xs mt-1 font-mono text-black">WhatsApp</span>
               </button>
               <button 
                 onClick={shareOnTwitter}
-                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition-colors"
+                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Share on X"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 4l11.733 16h4.267l-11.733 -16z"/>
                   <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"/>
                 </svg>
-                <span className="text-xs mt-1 font-mono">X</span>
+                <span className="text-xs mt-1 font-mono text-black">X</span>
               </button>
               <button 
                 onClick={shareOnLinkedIn}
-                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition-colors"
+                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Share on LinkedIn"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
                   <rect x="2" y="9" width="4" height="12"/>
                   <circle cx="4" cy="4" r="2"/>
                 </svg>
-                <span className="text-xs mt-1 font-mono">LinkedIn</span>
+                <span className="text-xs mt-1 font-mono text-black">LinkedIn</span>
               </button>
               <button 
                 onClick={shareOnFacebook}
-                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition-colors"
+                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Share on Facebook"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
                 </svg>
-                <span className="text-xs mt-1 font-mono">Facebook</span>
+                <span className="text-xs mt-1 font-mono text-black">Facebook</span>
               </button>
               <button 
                 onClick={shareViaEmail}
-                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition-colors"
+                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Share via Email"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="4" width="20" height="16" rx="2"/>
                   <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                 </svg>
-                <span className="text-xs mt-1 font-mono">Email</span>
+                <span className="text-xs mt-1 font-mono text-black">Email</span>
               </button>
               <button 
                 id="copy-btn"
                 onClick={copyToClipboard}
-                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 transition-colors"
+                className="flex flex-col items-center justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Copy Link"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
-                <span className="text-xs mt-1 font-mono">Copy</span>
+                <span className="text-xs mt-1 font-mono text-black">Copy</span>
               </button>
             </div>
           </div>
@@ -222,14 +222,14 @@ export default function ShareDonateButtons({
           onClick={() => setShowQR(false)}
         >
           <div 
-            className="bg-white border border-black p-6 max-w-sm w-full mx-4 animate-slideUp"
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-slideUp"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4 pb-3 border-b border-black">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
               <h3 className="text-sm font-bold text-black uppercase tracking-wider font-mono">Donate</h3>
               <button 
                 onClick={() => setShowQR(false)} 
-                className="text-black hover:opacity-70"
+                className="text-black hover:bg-gray-100 rounded p-1 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/>
@@ -239,14 +239,14 @@ export default function ShareDonateButtons({
             </div>
             <div className="flex justify-center mb-4">
               {!qrLoaded && (
-                <div className="w-60 h-60 bg-gray-200 animate-pulse flex items-center justify-center">
-                  <div className="w-40 h-40 bg-gray-300"></div>
+                <div className="w-60 h-60 bg-gray-200 animate-pulse flex items-center justify-center rounded-lg">
+                  <div className="w-40 h-40 bg-gray-300 rounded"></div>
                 </div>
               )}
               <img 
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiLink)}`}
                 alt="UPI QR Code"
-                className={`w-60 h-60 ${qrLoaded ? 'block' : 'hidden'}`}
+                className={`w-60 h-60 rounded-lg ${qrLoaded ? 'block' : 'hidden'}`}
                 onLoad={() => setQrLoaded(true)}
               />
             </div>
