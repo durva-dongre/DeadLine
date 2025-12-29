@@ -17,8 +17,7 @@ async function getEvents(): Promise<Event[]> {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/get/events`, {
       next: { 
-        tags: ['events-list'],
-        revalidate: false
+        tags: ['events-list']
       },
       headers: {
         'Content-Type': 'application/json',
@@ -121,8 +120,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const dynamic = 'force-static';
-export const revalidate = false;
-export const fetchCache = 'force-cache';
+export const revalidate = 3600;
 
 export default async function DeadlineEventsPage() {
   const events = await getEvents();
@@ -201,9 +199,15 @@ export default async function DeadlineEventsPage() {
           <div className="max-w-7xl mx-auto px-6 py-12">
             <div className="text-center">
               <h3 className="text-2xl font-black tracking-tight mb-4 text-black" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>DEADLINE</h3>
-              <p className="text-sm font-normal text-black tracking-wide font-mono">
+              <p className="text-sm font-normal text-black tracking-wide font-mono mb-6">
                 Museum of Temporary Truths
               </p>
+              <div className="flex justify-center gap-8 text-sm font-mono">
+                <a href="/about" className="text-black hover:underline">About</a>
+                <a href="/report" className="text-black hover:underline">Report</a>
+                <a href="/policies" className="text-black hover:underline">Policies</a>
+                <a href="/donate" className="text-black hover:underline">Donate</a>
+              </div>
             </div>
           </div>
         </footer>

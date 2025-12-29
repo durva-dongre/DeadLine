@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Event {
@@ -52,7 +52,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
-  const observerTarget = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const ITEMS_PER_PAGE = 30;
   const categories = ['All', 'Justice', 'Injustice'];
@@ -90,28 +89,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       setLoadingMore(false);
     }, 200);
   }, [filteredEvents, page, loadingMore, hasMore]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
-          loadMoreEvents();
-        }
-      },
-      { threshold: 0.1, rootMargin: '400px' }
-    );
-    
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-    
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [loadMoreEvents, hasMore, loadingMore]);
 
   useEffect(() => {
     setIsInitializing(true);
@@ -252,7 +229,17 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
               </div>
             )}
 
-            <div ref={observerTarget} className="h-10" />
+            {hasMore && (
+              <div className="flex justify-center mt-12">
+                <button
+                  onClick={loadMoreEvents}
+                  disabled={loadingMore}
+                  className="px-8 py-3 bg-black text-white font-mono text-sm tracking-wide hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? 'LOADING...' : 'LOAD MORE'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </main>

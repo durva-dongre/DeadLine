@@ -3,6 +3,7 @@ import { Metadata } from 'next';
 import ImageSlider from '../components/ImageSlider';
 import EventDetailsComponent from '../components/EventDetails';
 import SourcesComponent from '../components/Sources';
+import ShareDonateButtons from '../components/ShareDonateButtons';
 
 interface KeyFact {
   label: string;
@@ -371,6 +372,10 @@ export default async function EventPage({
     ? safeEventDetails.images[0] 
     : `${baseUrl}/og-default.png`;
 
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || '';
+  const upiName = process.env.NEXT_PUBLIC_UPI_NAME || '';
+  const upiNote = process.env.NEXT_PUBLIC_UPI_NOTE || '';
+
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
@@ -424,7 +429,7 @@ export default async function EventPage({
         <section className="bg-black text-white py-8 border-b-2 border-black">
           <div className="max-w-full mx-auto px-6">
             <div className="space-y-3">
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center justify-between">
                 <span className="px-3 py-1 bg-white text-black text-xs uppercase tracking-wider border border-black font-mono">
                   {new Date(safeEventDetails.created_at || Date.now()).toLocaleDateString('en-US', { 
                     year: 'numeric', 
@@ -432,6 +437,14 @@ export default async function EventPage({
                     day: 'numeric' 
                   })}
                 </span>
+                <ShareDonateButtons 
+                  eventId={id}
+                  headline={safeEventDetails.headline}
+                  upiId={upiId}
+                  upiName={upiName}
+                  upiNote={upiNote}
+                  baseUrl={baseUrl}
+                />
               </div>
               <h1 
                 className="text-2xl md:text-3xl font-bold leading-tight tracking-tight text-white text-justify" 
