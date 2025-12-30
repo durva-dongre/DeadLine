@@ -79,11 +79,10 @@ interface SourceWithTitle {
   favicon: string;
 }
 
-// Configuration for static generation
-export const dynamic = 'force-static';
-export const dynamicParams = true; // Allow dynamic params
-export const revalidate = false;
-export const fetchCache = 'force-cache';
+// These must match your folder name exactly
+type PageProps = {
+  params: Promise<{ id: string }> | { id: string };
+}
 
 async function getEventDetails(slug: string): Promise<EventDetails | null> {
   try {
@@ -102,16 +101,16 @@ async function getEventDetails(slug: string): Promise<EventDetails | null> {
     }
 
     const url = `${baseUrl}/api/get/details?slug=${encodeURIComponent(slug)}&api_key=${apiKey}`;
+    console.log('[getEventDetails] Fetching:', url);
 
     const response = await fetch(url, {
       next: { 
         tags: [`event-${slug}`, `event-details-${slug}`],
-        revalidate: false
+        revalidate: 300
       },
       headers: {
         'Content-Type': 'application/json',
       },
-      cache: 'force-cache'
     });
 
     if (!response.ok) {
@@ -126,6 +125,7 @@ async function getEventDetails(slug: string): Promise<EventDetails | null> {
       return null;
     }
 
+    console.log('[getEventDetails] Successfully fetched event:', result.data.headline);
     return result.data;
   } catch (error) {
     console.error('[getEventDetails] Exception for slug:', slug, error);
@@ -147,12 +147,11 @@ async function getEventUpdates(slug: string): Promise<EventUpdate[]> {
       {
         next: { 
           tags: [`event-${slug}`, `event-updates-${slug}`],
-          revalidate: false
+          revalidate: 300
         },
         headers: {
           'Content-Type': 'application/json',
         },
-        cache: 'force-cache'
       }
     );
 
@@ -194,12 +193,11 @@ async function getSourceTitles(sources: string[], slug: string): Promise<SourceW
           {
             next: {
               tags: [`event-${slug}`, `source-${domain}`],
-              revalidate: false
+              revalidate: 3600
             },
             headers: {
               'Content-Type': 'application/json',
             },
-            cache: 'force-cache'
           }
         );
 
@@ -258,51 +256,13 @@ function generateDynamicKeywords(eventDetails: EventDetails): string[] {
   return keywords;
 }
 
-// Generate static paths for pre-rendering
-export async function generateStaticParams() {
-  try {
-    const apiKey = process.env.API_SECRET_KEY;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-    
-    if (!apiKey || !baseUrl) {
-      console.error('[generateStaticParams] Missing environment variables');
-      return [];
-    }
-
-    // Fetch all event slugs from your API
-    const response = await fetch(
-      `${baseUrl}/api/get/all-slugs?api_key=${apiKey}`,
-      {
-        next: { revalidate: 3600 }, // Revalidate list every hour
-      }
-    );
-
-    if (!response.ok) {
-      console.error('[generateStaticParams] Failed to fetch slugs');
-      return [];
-    }
-
-    const data = await response.json();
-    const slugs = data.slugs || [];
-
-    return slugs.map((slug: string) => ({
-      slug: slug,
-    }));
-  } catch (error) {
-    console.error('[generateStaticParams] Exception:', error);
-    return [];
-  }
-}
-
-export async function generateMetadata({ 
-  params 
-}: { 
-  params: { slug: string };
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams.slug;
+  const id = resolvedParams.id;
   
-  const eventDetails = await getEventDetails(slug);
+  console.log('[generateMetadata] Processing id:', id);
+  
+  const eventDetails = await getEventDetails(id);
   
   if (!eventDetails) {
     return {
@@ -318,7 +278,7 @@ export async function generateMetadata({
     : `${process.env.NEXT_PUBLIC_BASE_URL}/og-default.png`;
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://deadline.com';
-  const url = `${baseUrl}/event/${slug}`;
+  const url = `${baseUrl}/event/${id}`;
 
   const keywords = generateDynamicKeywords(eventDetails);
 
@@ -387,26 +347,24 @@ export async function generateMetadata({
   };
 }
 
-export default async function EventPage({ 
-  params 
-}: { 
-  params: { slug: string };
-}) {
+export default async function EventPage({ params }: PageProps) {
   const resolvedParams = await Promise.resolve(params);
-  const slug = resolvedParams.slug;
+  const id = resolvedParams.id;
   
-  if (!slug || typeof slug !== 'string') {
-    console.error('[EventPage] Invalid slug:', slug);
+  console.log('[EventPage] Processing id:', id);
+  
+  if (!id || typeof id !== 'string') {
+    console.error('[EventPage] Invalid id:', id);
     notFound();
   }
 
   const [eventDetails, eventUpdates] = await Promise.all([
-    getEventDetails(slug),
-    getEventUpdates(slug)
+    getEventDetails(id),
+    getEventUpdates(id)
   ]);
 
   if (!eventDetails) {
-    console.error('[EventPage] Event not found for slug:', slug);
+    console.error('[EventPage] Event not found for id:', id);
     notFound();
   }
 
@@ -432,7 +390,7 @@ export default async function EventPage({
     updated_at: eventDetails.updated_at,
   };
 
-  const sourcesWithTitles = await getSourceTitles(safeEventDetails.sources, slug);
+  const sourcesWithTitles = await getSourceTitles(safeEventDetails.sources, id);
   const safeEventUpdates = Array.isArray(eventUpdates) ? eventUpdates : [];
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://deadline.com';
@@ -469,7 +427,7 @@ export default async function EventPage({
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}/event/${slug}`,
+      '@id': `${baseUrl}/event/${id}`,
     },
     about: {
       '@type': 'Thing',
@@ -551,7 +509,7 @@ export default async function EventPage({
                     })}
                   </time>
                   <ShareDonateButtons 
-                    eventId={slug}
+                    eventId={id}
                     headline={safeEventDetails.headline}
                     upiId={upiId}
                     upiName={upiName}
