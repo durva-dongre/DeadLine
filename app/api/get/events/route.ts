@@ -12,6 +12,7 @@ interface Event {
   summary: string | null;
   last_updated: string | null;
   incident_date: string | null;
+  slug: string;
 }
 
 const supabase = createClient(
@@ -22,17 +23,17 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 100); // Max 100 per request
+    const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
     
-    // Fetch events with pagination
+    // Fetch events with pagination, including slug field
     const { data: events, error, count } = await supabase
       .from('events')
-      .select('*', { count: 'exact' })
+      .select('event_id, title, image_url, status, tags, query, summary, last_updated, incident_date, slug', { count: 'exact' })
       .order('incident_date', { ascending: false, nullsFirst: false })
       .order('last_updated', { ascending: false })
       .range(offset, offset + limit - 1);
-
+    
     if (error) {
       console.error('Supabase error:', error);
       return NextResponse.json(
@@ -40,9 +41,9 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-
+    
     const hasMore = count ? (offset + limit) < count : false;
-
+    
     return NextResponse.json(
       { 
         events: events || [],
@@ -71,13 +72,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST endpoint for on-demand revalidation
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { revalidate, secret } = body;
     
-    // Optional: Add secret key validation for security
     if (process.env.REVALIDATION_SECRET && secret !== process.env.REVALIDATION_SECRET) {
       return NextResponse.json(
         { error: 'Invalid secret' },
@@ -86,7 +85,6 @@ export async function POST(request: NextRequest) {
     }
     
     if (revalidate) {
-      // Trigger revalidation of the events cache using revalidatePath
       revalidatePath('/api/get/events');
       
       return NextResponse.json(

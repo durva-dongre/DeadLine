@@ -31,6 +31,7 @@ interface PartyDetails {
 
 interface EventDetails {
   event_id: string;
+  slug: string;
   location: string;
   headline: string;
   details: {
@@ -78,7 +79,7 @@ interface SourceWithTitle {
   favicon: string;
 }
 
-async function getEventDetails(id: string): Promise<EventDetails | null> {
+async function getEventDetails(slug: string): Promise<EventDetails | null> {
   try {
     const apiKey = process.env.API_SECRET_KEY;
     
@@ -94,11 +95,11 @@ async function getEventDetails(id: string): Promise<EventDetails | null> {
       return null;
     }
 
-    const url = `${baseUrl}/api/get/details?event_id=${id}&api_key=${apiKey}`;
+    const url = `${baseUrl}/api/get/details?slug=${encodeURIComponent(slug)}&api_key=${apiKey}`;
 
     const response = await fetch(url, {
       next: { 
-        tags: [`event-${id}`, `event-details-${id}`],
+        tags: [`event-${slug}`, `event-details-${slug}`],
         revalidate: false
       },
       headers: {
@@ -126,7 +127,7 @@ async function getEventDetails(id: string): Promise<EventDetails | null> {
   }
 }
 
-async function getEventUpdates(id: string): Promise<EventUpdate[]> {
+async function getEventUpdates(slug: string): Promise<EventUpdate[]> {
   try {
     const apiKey = process.env.API_SECRET_KEY;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -136,10 +137,10 @@ async function getEventUpdates(id: string): Promise<EventUpdate[]> {
     }
 
     const response = await fetch(
-      `${baseUrl}/api/get/updates?event_id=${id}&api_key=${apiKey}`,
+      `${baseUrl}/api/get/updates?slug=${encodeURIComponent(slug)}&api_key=${apiKey}`,
       {
         next: { 
-          tags: [`event-${id}`, `event-updates-${id}`],
+          tags: [`event-${slug}`, `event-updates-${slug}`],
           revalidate: false
         },
         headers: {
@@ -161,7 +162,7 @@ async function getEventUpdates(id: string): Promise<EventUpdate[]> {
   }
 }
 
-async function getSourceTitles(sources: string[], eventId: string): Promise<SourceWithTitle[]> {
+async function getSourceTitles(sources: string[], slug: string): Promise<SourceWithTitle[]> {
   const validSources = sources.filter(source => {
     if (!source || typeof source !== 'string' || source.trim() === '') return false;
     try {
@@ -186,7 +187,7 @@ async function getSourceTitles(sources: string[], eventId: string): Promise<Sour
           `${baseUrl}/api/get/title?url=${encodeURIComponent(trimmedUrl)}`,
           {
             next: {
-              tags: [`event-${eventId}`, `source-${domain}`],
+              tags: [`event-${slug}`, `source-${domain}`],
               revalidate: false
             },
             headers: {
@@ -256,11 +257,11 @@ function generateDynamicKeywords(eventDetails: EventDetails): string[] {
 export async function generateMetadata({ 
   params 
 }: { 
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  const { slug } = await params;
   
-  const eventDetails = await getEventDetails(id);
+  const eventDetails = await getEventDetails(slug);
   
   if (!eventDetails) {
     return {
@@ -276,7 +277,7 @@ export async function generateMetadata({
     : `${process.env.NEXT_PUBLIC_BASE_URL}/og-default.png`;
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://deadline.com';
-  const url = `${baseUrl}/event/${id}`;
+  const url = `${baseUrl}/event/${slug}`;
 
   const keywords = generateDynamicKeywords(eventDetails);
 
@@ -352,17 +353,17 @@ export const fetchCache = 'force-cache';
 export default async function EventPage({ 
   params 
 }: { 
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = await params;
+  const { slug } = await params;
   
-  if (!id) {
+  if (!slug) {
     notFound();
   }
 
   const [eventDetails, eventUpdates] = await Promise.all([
-    getEventDetails(id),
-    getEventUpdates(id)
+    getEventDetails(slug),
+    getEventUpdates(slug)
   ]);
 
   if (!eventDetails) {
@@ -371,6 +372,7 @@ export default async function EventPage({
 
   const safeEventDetails: EventDetails = {
     ...eventDetails,
+    slug: eventDetails.slug,
     images: Array.isArray(eventDetails.images) ? eventDetails.images : [],
     sources: Array.isArray(eventDetails.sources) ? eventDetails.sources : [],
     location: eventDetails.location || 'Unknown Location',
@@ -390,7 +392,7 @@ export default async function EventPage({
     updated_at: eventDetails.updated_at,
   };
 
-  const sourcesWithTitles = await getSourceTitles(safeEventDetails.sources, id);
+  const sourcesWithTitles = await getSourceTitles(safeEventDetails.sources, slug);
   const safeEventUpdates = Array.isArray(eventUpdates) ? eventUpdates : [];
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://deadline.com';
@@ -428,7 +430,7 @@ export default async function EventPage({
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `${baseUrl}/event/${id}`,
+      '@id': `${baseUrl}/event/${slug}`,
     },
     about: {
       '@type': 'Thing',
@@ -512,7 +514,7 @@ export default async function EventPage({
                     })}
                   </time>
                   <ShareDonateButtons 
-                    eventId={id}
+                    eventId={slug}
                     headline={safeEventDetails.headline}
                     upiId={upiId}
                     upiName={upiName}

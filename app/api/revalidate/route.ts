@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { api_key, event_id, revalidate_main } = body;
+    const { api_key, event_id, revalidate_main, revalidate_donations } = body;
 
     if (!api_key || api_key !== process.env.API_SECRET_KEY) {
       return NextResponse.json(
@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const tagsToRevalidate: string[] = [];
     let message = '';
 
+    // Handle event revalidation
     if (event_id) {
       tagsToRevalidate.push(
         `event-${event_id}`,
@@ -27,16 +28,25 @@ export async function POST(request: NextRequest) {
       message = `Cache revalidated for event ${event_id}`;
     }
 
+    // Handle main events list revalidation
     if (revalidate_main) {
       tagsToRevalidate.push('events-list');
       message = event_id 
-        ? `Cache revalidated for event ${event_id} and main events list`
+        ? `${message} and main events list`
         : 'Cache revalidated for main events list';
+    }
+
+    // Handle donations revalidation
+    if (revalidate_donations) {
+      tagsToRevalidate.push('donations-cache');
+      message = message 
+        ? `${message} and donations`
+        : 'Cache revalidated for donations';
     }
 
     if (tagsToRevalidate.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Missing event_id or revalidate_main parameter' },
+        { success: false, message: 'No revalidation parameters provided' },
         { status: 400 }
       );
     }
@@ -75,6 +85,7 @@ export async function GET(request: NextRequest) {
     const api_key = searchParams.get('api_key');
     const event_id = searchParams.get('event_id');
     const revalidate_main = searchParams.get('revalidate_main') === 'true';
+    const revalidate_donations = searchParams.get('revalidate_donations') === 'true';
 
     if (!api_key || api_key !== process.env.API_SECRET_KEY) {
       return NextResponse.json(
@@ -98,13 +109,20 @@ export async function GET(request: NextRequest) {
     if (revalidate_main) {
       tagsToRevalidate.push('events-list');
       message = event_id 
-        ? `Cache revalidated for event ${event_id} and main events list`
+        ? `${message} and main events list`
         : 'Cache revalidated for main events list';
+    }
+
+    if (revalidate_donations) {
+      tagsToRevalidate.push('donations-cache');
+      message = message 
+        ? `${message} and donations`
+        : 'Cache revalidated for donations';
     }
 
     if (tagsToRevalidate.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Missing event_id or revalidate_main parameter' },
+        { success: false, message: 'No revalidation parameters provided' },
         { status: 400 }
       );
     }

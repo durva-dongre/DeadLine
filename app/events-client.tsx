@@ -13,10 +13,24 @@ interface Event {
   summary: string | null;
   last_updated: string | null;
   incident_date: string | null;
+  slug: string;
 }
 
 interface EventsClientProps {
   initialEvents: Event[];
+}
+
+interface SearchIndexEntry {
+  event_id: number;
+  slug: string;
+  searchText: string;
+  batchIndex: number;
+}
+
+interface SearchCache {
+  index: SearchIndexEntry[];
+  isBuilt: boolean;
+  buildProgress: number;
 }
 
 function EventCardSkeleton() {
@@ -54,16 +68,147 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [clickedEventId, setClickedEventId] = useState<number | null>(null);
+  const [clickedSlug, setClickedSlug] = useState<string | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isBuildingIndex, setIsBuildingIndex] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventCache = useRef<Map<string, Event[]>>(new Map());
+  const searchCache = useRef<SearchCache>({ index: [], isBuilt: false, buildProgress: 0 });
+  const eventMapRef = useRef<Map<string, Event>>(new Map());
   const router = useRouter();
   
   const ITEMS_PER_PAGE = 30;
   const categories = ['All', 'Justice', 'Injustice'];
+
+  // Build search index from event
+  const buildSearchEntry = useCallback((event: Event, batchIndex: number): SearchIndexEntry => {
+    const searchText = [
+      event.title,
+      event.summary || '',
+      ...(event.tags || [])
+    ]
+      .join(' ')
+      .toLowerCase()
+      .trim();
+    
+    return {
+      event_id: event.event_id,
+      slug: event.slug,
+      searchText,
+      batchIndex
+    };
+  }, []);
+
+  // Build complete search index (lazy loaded on first search)
+  const buildSearchIndex = useCallback(async () => {
+    if (searchCache.current.isBuilt || isBuildingIndex) return;
+    
+    setIsBuildingIndex(true);
+    const index: SearchIndexEntry[] = [];
+    const eventMap = new Map<string, Event>();
+    
+    try {
+      // Add current events to index
+      allEvents.forEach((event, idx) => {
+        index.push(buildSearchEntry(event, Math.floor(idx / ITEMS_PER_PAGE)));
+        eventMap.set(event.slug, event);
+      });
+      
+      // Fetch remaining batches in background
+      let offset = allEvents.length;
+      let batchNumber = Math.ceil(allEvents.length / ITEMS_PER_PAGE);
+      let hasMoreBatches = true;
+      
+      while (hasMoreBatches) {
+        try {
+          const response = await fetch(
+            `/api/get/events?limit=${ITEMS_PER_PAGE}&offset=${offset}`,
+            {
+              headers: { 'Content-Type': 'application/json' },
+              cache: 'force-cache'
+            }
+          );
+          
+          if (!response.ok) break;
+          
+          const data = await response.json();
+          const events = data.events || [];
+          
+          if (events.length === 0) {
+            hasMoreBatches = false;
+            break;
+          }
+          
+          // Add to search index
+          events.forEach((event: Event) => {
+            index.push(buildSearchEntry(event, batchNumber));
+            eventMap.set(event.slug, event);
+          });
+          
+          // Update progress
+          searchCache.current.buildProgress = (offset + events.length) / (data.pagination?.total || offset + events.length);
+          
+          offset += events.length;
+          batchNumber++;
+          
+          // Cache this batch
+          eventCache.current.set(`batch_${offset - events.length}`, events);
+          
+          if (events.length < ITEMS_PER_PAGE) {
+            hasMoreBatches = false;
+          }
+          
+          // Small delay to prevent overwhelming the API
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (error) {
+          console.error('Error building search index:', error);
+          hasMoreBatches = false;
+        }
+      }
+      
+      // Store the complete index
+      searchCache.current.index = index;
+      searchCache.current.isBuilt = true;
+      eventMapRef.current = eventMap;
+      
+    } finally {
+      setIsBuildingIndex(false);
+    }
+  }, [allEvents, buildSearchEntry, isBuildingIndex]);
+
+  // Search through index
+  const searchInIndex = useCallback((query: string): Event[] => {
+    if (!query.trim() || !searchCache.current.isBuilt) {
+      return [];
+    }
+    
+    const searchTerms = query.toLowerCase().trim().split(/\s+/);
+    const matchedSlugs = new Set<string>();
+    
+    // Search through index
+    searchCache.current.index.forEach(entry => {
+      const matches = searchTerms.every(term => entry.searchText.includes(term));
+      if (matches) {
+        matchedSlugs.add(entry.slug);
+      }
+    });
+    
+    // Get full event objects
+    const results: Event[] = [];
+    matchedSlugs.forEach(slug => {
+      const event = eventMapRef.current.get(slug);
+      if (event) results.push(event);
+    });
+    
+    // Sort by date
+    return results.sort((a, b) => {
+      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, []);
 
   // Filter and search events
   const filteredEvents = useMemo(() => {
@@ -80,14 +225,31 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     
     // Apply search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(event => {
-        return (
-          event.title.toLowerCase().includes(query) ||
-          event.summary?.toLowerCase().includes(query) ||
-          event.tags?.some(tag => tag.toLowerCase().includes(query))
-        );
-      });
+      if (searchCache.current.isBuilt) {
+        // Use indexed search for better performance
+        const searchResults = searchInIndex(searchQuery);
+        
+        // Apply category filter to search results if needed
+        if (activeFilter !== 'All') {
+          return searchResults.filter(event => {
+            const statusLower = event.status.toLowerCase();
+            const filterLower = activeFilter.toLowerCase();
+            return statusLower === filterLower;
+          });
+        }
+        
+        return searchResults;
+      } else {
+        // Fallback to basic search on loaded events
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(event => {
+          return (
+            event.title.toLowerCase().includes(query) ||
+            event.summary?.toLowerCase().includes(query) ||
+            event.tags?.some(tag => tag.toLowerCase().includes(query))
+          );
+        });
+      }
     }
     
     return filtered.sort((a, b) => {
@@ -95,7 +257,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
       return dateB - dateA;
     });
-  }, [allEvents, activeFilter, searchQuery]);
+  }, [allEvents, activeFilter, searchQuery, searchInIndex]);
 
   // Fetch next batch from API
   const fetchNextBatch = useCallback(async (offset: number) => {
@@ -154,6 +316,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       const updatedEvents = [...allEvents, ...newBatch];
       setAllEvents(updatedEvents);
       
+      // Update event map if search index is being built
+      if (searchCache.current.isBuilt || isBuildingIndex) {
+        newBatch.forEach((event: Event) => {
+          eventMapRef.current.set(event.slug, event);
+        });
+      }
+      
       // Check if there are more events
       setHasMore(newBatch.length === ITEMS_PER_PAGE);
       
@@ -163,7 +332,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     } finally {
       setLoadingMore(false);
     }
-  }, [allEvents, loadingMore, hasMore, fetchNextBatch]);
+  }, [allEvents, loadingMore, hasMore, fetchNextBatch, isBuildingIndex]);
 
   // Initialize displayed events
   useEffect(() => {
@@ -194,20 +363,23 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       const newState = !prev;
       if (newState) {
         setTimeout(() => searchInputRef.current?.focus(), 100);
+        // Build search index on first search expansion
+        if (!searchCache.current.isBuilt && !isBuildingIndex) {
+          buildSearchIndex();
+        }
       } else {
         setSearchQuery('');
       }
       return newState;
     });
-  }, []);
+  }, [buildSearchIndex, isBuildingIndex]);
 
   // Handle search input
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value);
-    setPage(1); // Reset to first page on search
+    setPage(1);
     setIsSearching(true);
     
-    // Debounce search
     const timer = setTimeout(() => {
       setIsSearching(false);
     }, 300);
@@ -235,16 +407,15 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     return 'bg-black text-white';
   }, []);
 
-  const handleEventClick = useCallback((eventId: number, e: React.MouseEvent) => {
+  const handleEventClick = useCallback((slug: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setClickedEventId(eventId);
+    setClickedSlug(slug);
     setTimeout(() => {
-      router.push(`/event/${eventId}`);
+      router.push(`/event/${slug}`);
     }, 150);
   }, [router]);
 
-  // Determine if we need to fetch more from API
   const needsMoreFromAPI = displayedEvents.length >= allEvents.length && hasMore;
 
   return (
@@ -273,15 +444,8 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
             <div className={`transition-all duration-500 ease-in-out ${
               searchExpanded ? 'w-full max-w-xl' : 'w-auto'
             }`}>
-              <button
-                onClick={toggleSearch}
-                className={`px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-500 ease-in-out font-mono overflow-hidden ${
-                  searchExpanded
-                    ? 'bg-white border-2 border-black w-full text-left'
-                    : 'bg-gray-100 text-black hover:bg-gray-200 w-auto'
-                }`}
-              >
-                {searchExpanded ? (
+              {searchExpanded ? (
+                <div className="px-4 py-2 rounded-full border-2 border-black bg-white w-full relative">
                   <div className="flex items-center justify-between w-full gap-2">
                     <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <input
@@ -289,27 +453,31 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => handleSearch(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      placeholder="Search stories..."
-                      className="flex-1 bg-transparent outline-none text-black placeholder-gray-400 font-mono text-xs"
+                      placeholder={isBuildingIndex ? "Building search index..." : "Search stories..."}
+                      disabled={isBuildingIndex}
+                      className="flex-1 bg-transparent outline-none text-black placeholder-gray-400 font-mono text-xs disabled:opacity-50"
                     />
-                    {searchQuery && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSearchQuery('');
-                        }}
-                        className="text-black hover:text-gray-600 flex-shrink-0 transition-colors duration-200"
-                        aria-label="Clear search"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={toggleSearch}
+                      className="text-black hover:text-gray-600 flex-shrink-0 transition-colors duration-200"
+                      aria-label="Close search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                ) : (
-                  'SEARCH'
-                )}
-              </button>
+                  {isBuildingIndex && (
+                    <div className="absolute bottom-0 left-0 h-0.5 bg-black transition-all duration-300 rounded-full" 
+                         style={{ width: `${searchCache.current.buildProgress * 100}%` }} />
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={toggleSearch}
+                  className="px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-300 font-mono bg-gray-100 text-black hover:bg-gray-200"
+                >
+                  SEARCH
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -342,19 +510,19 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {displayedEvents.map((event, index) => (
                 <article 
-                  key={event.event_id} 
-                  onClick={(e) => handleEventClick(event.event_id, e)}
+                  key={event.slug} 
+                  onClick={(e) => handleEventClick(event.slug, e)}
                   className={`group cursor-pointer transition-opacity duration-150 ${
-                    clickedEventId === event.event_id ? 'opacity-60' : ''
+                    clickedSlug === event.slug ? 'opacity-60' : ''
                   }`}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setClickedEventId(event.event_id);
+                      setClickedSlug(event.slug);
                       setTimeout(() => {
-                        router.push(`/event/${event.event_id}`);
+                        router.push(`/event/${event.slug}`);
                       }, 150);
                     }
                   }}
