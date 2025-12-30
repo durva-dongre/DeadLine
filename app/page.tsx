@@ -11,9 +11,9 @@ interface Event {
   summary: string | null;
   last_updated: string | null;
   incident_date: string | null;
+  slug: string;
 }
 
-// Fetch only initial batch for SSR
 async function getInitialEvents(): Promise<Event[]> {
   try {
     const response = await fetch(
@@ -21,7 +21,7 @@ async function getInitialEvents(): Promise<Event[]> {
       {
         next: { 
           tags: ['events-list'],
-          revalidate: 3600 // Revalidate every hour
+          revalidate: 3600
         },
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 3600; // Revalidate every hour
+export const revalidate = 3600;
 
 export default async function DeadlineEventsPage() {
   const initialEvents = await getInitialEvents();
