@@ -82,7 +82,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   const ITEMS_PER_PAGE = 30;
   const categories = ['All', 'Justice', 'Injustice'];
 
-  // Build search index from event
   const buildSearchEntry = useCallback((event: Event, batchIndex: number): SearchIndexEntry => {
     const searchText = [
       event.title,
@@ -101,7 +100,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     };
   }, []);
 
-  // Build complete search index (lazy loaded on first search)
   const buildSearchIndex = useCallback(async () => {
     if (searchCache.current.isBuilt || isBuildingIndex) return;
     
@@ -110,13 +108,11 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     const eventMap = new Map<string, Event>();
     
     try {
-      // Add current events to index
       allEvents.forEach((event, idx) => {
         index.push(buildSearchEntry(event, Math.floor(idx / ITEMS_PER_PAGE)));
         eventMap.set(event.slug, event);
       });
       
-      // Fetch remaining batches in background
       let offset = allEvents.length;
       let batchNumber = Math.ceil(allEvents.length / ITEMS_PER_PAGE);
       let hasMoreBatches = true;
@@ -141,26 +137,22 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
             break;
           }
           
-          // Add to search index
           events.forEach((event: Event) => {
             index.push(buildSearchEntry(event, batchNumber));
             eventMap.set(event.slug, event);
           });
           
-          // Update progress
           searchCache.current.buildProgress = (offset + events.length) / (data.pagination?.total || offset + events.length);
           
           offset += events.length;
           batchNumber++;
           
-          // Cache this batch
           eventCache.current.set(`batch_${offset - events.length}`, events);
           
           if (events.length < ITEMS_PER_PAGE) {
             hasMoreBatches = false;
           }
           
-          // Small delay to prevent overwhelming the API
           await new Promise(resolve => setTimeout(resolve, 50));
         } catch (error) {
           console.error('Error building search index:', error);
@@ -168,7 +160,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
         }
       }
       
-      // Store the complete index
       searchCache.current.index = index;
       searchCache.current.isBuilt = true;
       eventMapRef.current = eventMap;
@@ -178,7 +169,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     }
   }, [allEvents, buildSearchEntry, isBuildingIndex]);
 
-  // Search through index
   const searchInIndex = useCallback((query: string): Event[] => {
     if (!query.trim() || !searchCache.current.isBuilt) {
       return [];
@@ -187,7 +177,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     const searchTerms = query.toLowerCase().trim().split(/\s+/);
     const matchedSlugs = new Set<string>();
     
-    // Search through index
     searchCache.current.index.forEach(entry => {
       const matches = searchTerms.every(term => entry.searchText.includes(term));
       if (matches) {
@@ -195,14 +184,12 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       }
     });
     
-    // Get full event objects
     const results: Event[] = [];
     matchedSlugs.forEach(slug => {
       const event = eventMapRef.current.get(slug);
       if (event) results.push(event);
     });
     
-    // Sort by date
     return results.sort((a, b) => {
       const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
       const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
@@ -210,11 +197,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     });
   }, []);
 
-  // Filter and search events
   const filteredEvents = useMemo(() => {
     let filtered = allEvents;
     
-    // Apply category filter
     if (activeFilter !== 'All') {
       filtered = filtered.filter(event => {
         const statusLower = event.status.toLowerCase();
@@ -223,13 +208,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       });
     }
     
-    // Apply search filter
     if (searchQuery.trim()) {
       if (searchCache.current.isBuilt) {
-        // Use indexed search for better performance
         const searchResults = searchInIndex(searchQuery);
         
-        // Apply category filter to search results if needed
         if (activeFilter !== 'All') {
           return searchResults.filter(event => {
             const statusLower = event.status.toLowerCase();
@@ -240,7 +222,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
         
         return searchResults;
       } else {
-        // Fallback to basic search on loaded events
         const query = searchQuery.toLowerCase();
         filtered = filtered.filter(event => {
           return (
@@ -259,11 +240,9 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     });
   }, [allEvents, activeFilter, searchQuery, searchInIndex]);
 
-  // Fetch next batch from API
   const fetchNextBatch = useCallback(async (offset: number) => {
     const cacheKey = `batch_${offset}`;
     
-    // Check cache first
     if (eventCache.current.has(cacheKey)) {
       return eventCache.current.get(cacheKey)!;
     }
@@ -287,7 +266,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       const data = await response.json();
       const events = data.events || [];
       
-      // Cache the batch
       eventCache.current.set(cacheKey, events);
       
       return events;
@@ -297,7 +275,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     }
   }, []);
 
-  // Load more events (batch-wise)
   const loadMoreEvents = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -312,18 +289,15 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
         return;
       }
       
-      // Add new batch to all events
       const updatedEvents = [...allEvents, ...newBatch];
       setAllEvents(updatedEvents);
       
-      // Update event map if search index is being built
       if (searchCache.current.isBuilt || isBuildingIndex) {
         newBatch.forEach((event: Event) => {
           eventMapRef.current.set(event.slug, event);
         });
       }
       
-      // Check if there are more events
       setHasMore(newBatch.length === ITEMS_PER_PAGE);
       
     } catch (error) {
@@ -334,7 +308,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     }
   }, [allEvents, loadingMore, hasMore, fetchNextBatch, isBuildingIndex]);
 
-  // Initialize displayed events
   useEffect(() => {
     setIsInitializing(true);
     
@@ -348,7 +321,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     return () => clearTimeout(timer);
   }, [filteredEvents]);
 
-  // Update displayed events when page changes
   useEffect(() => {
     if (!isInitializing) {
       const endIndex = page * ITEMS_PER_PAGE;
@@ -357,13 +329,11 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     }
   }, [page, filteredEvents, isInitializing]);
 
-  // Handle search expansion
   const toggleSearch = useCallback(() => {
     setSearchExpanded(prev => {
       const newState = !prev;
       if (newState) {
         setTimeout(() => searchInputRef.current?.focus(), 100);
-        // Build search index on first search expansion
         if (!searchCache.current.isBuilt && !isBuildingIndex) {
           buildSearchIndex();
         }
@@ -374,7 +344,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     });
   }, [buildSearchIndex, isBuildingIndex]);
 
-  // Handle search input
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value);
     setPage(1);
@@ -422,9 +391,11 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     <>
       <section className="border-y border-black bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-wrap gap-3 justify-center items-center overflow-hidden">
-            <div className={`flex flex-wrap gap-3 justify-center items-center transition-all duration-500 ease-in-out ${
-              searchExpanded ? 'opacity-0 scale-95 -translate-x-8 pointer-events-none absolute' : 'opacity-100 scale-100 translate-x-0'
+          <div className="flex flex-wrap gap-3 justify-center items-center relative">
+            <div className={`flex flex-wrap gap-3 justify-center items-center transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+              searchExpanded 
+                ? 'opacity-0 scale-90 blur-sm pointer-events-none absolute inset-0' 
+                : 'opacity-100 scale-100 blur-0 relative'
             }`}>
               {categories.map((category) => (
                 <button
@@ -441,13 +412,15 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
               ))}
             </div>
             
-            <div className={`transition-all duration-500 ease-in-out ${
-              searchExpanded ? 'w-full max-w-xl' : 'w-auto'
+            <div className={`transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+              searchExpanded 
+                ? 'w-full max-w-xl opacity-100 scale-100' 
+                : 'w-auto opacity-100 scale-100'
             }`}>
               {searchExpanded ? (
-                <div className="px-4 py-2 rounded-full border-2 border-black bg-white w-full relative">
+                <div className="px-4 py-2 rounded-full border-2 border-black bg-white w-full relative overflow-hidden">
                   <div className="flex items-center justify-between w-full gap-2">
-                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-300 hover:scale-110" />
                     <input
                       ref={searchInputRef}
                       type="text"
@@ -455,25 +428,27 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                       onChange={(e) => handleSearch(e.target.value)}
                       placeholder={isBuildingIndex ? "Building search index..." : "Search stories..."}
                       disabled={isBuildingIndex}
-                      className="flex-1 bg-transparent outline-none text-black placeholder-gray-400 font-mono text-xs disabled:opacity-50"
+                      className="flex-1 bg-transparent outline-none text-black placeholder-gray-400 font-mono text-xs disabled:opacity-50 transition-all duration-300"
                     />
                     <button
                       onClick={toggleSearch}
-                      className="text-black hover:text-gray-600 flex-shrink-0 transition-colors duration-200"
+                      className="text-black hover:text-gray-600 flex-shrink-0 transition-all duration-300 hover:rotate-90"
                       aria-label="Close search"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                   {isBuildingIndex && (
-                    <div className="absolute bottom-0 left-0 h-0.5 bg-black transition-all duration-300 rounded-full" 
-                         style={{ width: `${searchCache.current.buildProgress * 100}%` }} />
+                    <div 
+                      className="absolute bottom-0 left-0 h-0.5 bg-black transition-all duration-500 ease-out rounded-full" 
+                      style={{ width: `${searchCache.current.buildProgress * 100}%` }} 
+                    />
                   )}
                 </div>
               ) : (
                 <button
                   onClick={toggleSearch}
-                  className="px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-300 font-mono bg-gray-100 text-black hover:bg-gray-200"
+                  className="px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-300 font-mono bg-gray-100 text-black hover:bg-gray-200 hover:scale-105 active:scale-95"
                 >
                   SEARCH
                 </button>
