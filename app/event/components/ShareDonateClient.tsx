@@ -95,7 +95,7 @@ export default function ShareDonateClient({
             strokeWidth="2" 
             strokeLinecap="round" 
             strokeLinejoin="round"
-            className="stroke-black transition-all"
+            className="stroke-white transition-all"
           >
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
             <polyline points="16 6 12 2 8 6"/>
@@ -113,12 +113,12 @@ export default function ShareDonateClient({
             width="24" 
             height="24" 
             viewBox="0 0 24 24" 
-            fill={isDonateActive ? "black" : "none"}
+            fill={isDonateActive ? "white" : "none"}
             stroke="currentColor"
             strokeWidth="2" 
             strokeLinecap="round" 
             strokeLinejoin="round"
-            className="stroke-black transition-all"
+            className="stroke-white transition-all"
           >
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
