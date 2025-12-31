@@ -22,25 +22,18 @@ interface CacheBatch {
 
 const BATCH_SIZE = 30;
 
-// Fetch ALL events and sort them by last_updated descending
 async function getAllEventsSorted(): Promise<Event[]> {
   try {
     const allEvents: Event[] = [];
     let offset = 0;
-    const limit = 100; // Fetch in chunks of 100
+    const limit = 100;
     let hasMore = true;
 
     while (hasMore) {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/get/events?limit=${limit}&offset=${offset}`,
         {
-          next: { 
-            tags: ['events-list'],
-            revalidate: false // Only revalidate when API is called
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          cache: 'no-store'
         }
       );
       
@@ -58,14 +51,12 @@ async function getAllEventsSorted(): Promise<Event[]> {
         allEvents.push(...fetchedEvents);
         offset += limit;
         
-        // If we got less than limit, we've reached the end
         if (fetchedEvents.length < limit) {
           hasMore = false;
         }
       }
     }
 
-    // Sort by last_updated descending (most recent first)
     return allEvents.sort((a, b) => {
       const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
       const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
@@ -77,7 +68,6 @@ async function getAllEventsSorted(): Promise<Event[]> {
   }
 }
 
-// Create batches from sorted events
 function createBatches(events: Event[]): CacheBatch[] {
   const batches: CacheBatch[] = [];
   const totalBatches = Math.ceil(events.length / BATCH_SIZE);
@@ -167,14 +157,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const dynamic = 'force-static';
-export const revalidate = false; // Only revalidate when API is called
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function DeadlineEventsPage() {
-  // Fetch all events sorted by last_updated descending
   const allEventsSorted = await getAllEventsSorted();
   
-  // Create batches
   const batches = createBatches(allEventsSorted);
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://deadline.com';
