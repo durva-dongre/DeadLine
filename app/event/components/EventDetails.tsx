@@ -128,8 +128,7 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
         const timelineHeight = timelineContentRef.current?.scrollHeight || 0;
         const updatesHeight = updatesContentRef.current?.scrollHeight || 0;
         
-        // Set minimum height for updates placeholder
-        const minUpdatesHeight = eventUpdates.length === 0 ? 350 : updatesHeight;
+        const minUpdatesHeight = eventUpdates && eventUpdates.length === 0 ? 350 : updatesHeight;
         
         if (timelineHeight > 0 && minUpdatesHeight > 0) {
           setBottomHeight(Math.min(timelineHeight, minUpdatesHeight) + 80);
@@ -143,7 +142,7 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
       window.addEventListener('resize', calculateHeights);
       return () => window.removeEventListener('resize', calculateHeights);
     }
-  }, [loading, eventUpdates.length]);
+  }, [loading, eventUpdates]);
 
   if (loading) {
     return <Skeleton />;
@@ -179,6 +178,8 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
   
   const updatesNeedsScroll = bottomHeight && updatesContentRef.current && 
     updatesContentRef.current.scrollHeight > (bottomHeight - 80);
+
+  const hasUpdates = eventUpdates && Array.isArray(eventUpdates) && eventUpdates.length > 0;
 
   return (
     <>
@@ -401,7 +402,7 @@ export default function EventDetailsComponent({ eventDetails, eventUpdates }: Ev
             <div className="px-4 pb-4 overflow-y-auto scrollbar-thin"
                  style={{ height: bottomHeight ? `${bottomHeight - 70}px` : 'auto' }}>
               <div ref={updatesContentRef} className="space-y-3">
-                {eventUpdates.length > 0 ? (
+                {hasUpdates ? (
                   eventUpdates.map((update) => (
                     <article key={update.update_id} className="pb-3 border-b border-gray-200 last:border-b-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
