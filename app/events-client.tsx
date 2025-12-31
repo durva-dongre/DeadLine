@@ -61,6 +61,7 @@ export function EventsClient({ batches, allEvents }: EventsClientProps) {
   const [clickedSlug, setClickedSlug] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<Event[] | null>(null);
   const [searchActive, setSearchActive] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   
   const router = useRouter();
   
@@ -129,6 +130,11 @@ export function EventsClient({ batches, allEvents }: EventsClientProps) {
     setSearchActive(isActive);
   }, []);
 
+  // Handle search toggle
+  const handleSearchToggle = useCallback(() => {
+    setSearchExpanded(prev => !prev);
+  }, []);
+
   const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return 'NO DATE';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -155,17 +161,18 @@ export function EventsClient({ batches, allEvents }: EventsClientProps) {
     <>
       <section className="border-y border-black bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
-          <div className="flex flex-nowrap gap-2 md:gap-3 justify-center items-center overflow-hidden relative">
-            <div className={`flex flex-nowrap gap-2 md:gap-3 justify-center items-center transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-              searchActive 
-                ? 'opacity-0 scale-95 -translate-x-full absolute pointer-events-none' 
-                : 'opacity-100 scale-100 translate-x-0 relative'
+          <div className="relative flex items-center justify-center gap-2 md:gap-3">
+            {/* Category Tags */}
+            <div className={`flex gap-2 md:gap-3 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+              searchExpanded 
+                ? 'opacity-0 -translate-x-8 scale-95 pointer-events-none' 
+                : 'opacity-100 translate-x-0 scale-100'
             }`}>
               {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => handleFilterChange(category)}
-                  className={`px-3 md:px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-300 font-mono whitespace-nowrap ${
+                  className={`px-3 md:px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-300 font-mono whitespace-nowrap h-[36px] ${
                     activeFilter === category
                       ? 'bg-black text-white shadow-md'
                       : 'bg-gray-100 text-black hover:bg-gray-200'
@@ -176,18 +183,25 @@ export function EventsClient({ batches, allEvents }: EventsClientProps) {
               ))}
             </div>
             
+            {/* Search Bar */}
             <div className={`transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-              searchActive ? 'w-full' : 'w-auto'
+              searchExpanded 
+                ? 'w-full max-w-full md:max-w-2xl absolute left-0 right-0 mx-auto px-4 md:px-0' 
+                : 'w-auto relative'
             }`}>
               <Suspense fallback={
-                <button className="px-4 py-2 rounded-full text-xs font-medium tracking-wide font-mono bg-gray-100 text-black">
-                  SEARCH
-                </button>
+                <div className="h-[36px] flex items-center justify-center">
+                  <button className="px-4 py-2 rounded-full text-xs font-medium tracking-wide font-mono bg-gray-100 text-black h-[36px]">
+                    SEARCH
+                  </button>
+                </div>
               }>
                 <SearchBar 
                   allEvents={allEvents} 
                   activeFilter={activeFilter}
                   onSearchResults={handleSearchResults}
+                  isExpanded={searchExpanded}
+                  onToggle={handleSearchToggle}
                 />
               </Suspense>
             </div>
@@ -206,6 +220,7 @@ export function EventsClient({ batches, allEvents }: EventsClientProps) {
                 onClick={() => {
                   setSearchResults(null);
                   setSearchActive(false);
+                  setSearchExpanded(false);
                   handleFilterChange('All');
                 }}
                 className="text-black font-medium hover:text-gray-600 transition-colors font-mono text-sm underline hover:scale-105 active:scale-95 inline-block transition-transform duration-200"
