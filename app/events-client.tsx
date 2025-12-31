@@ -90,6 +90,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
           event.title,
           event.summary || '',
           event.incident_date || '',
+          event.last_updated || '',
           ...(event.tags || [])
         ]
           .join(' ')
@@ -110,11 +111,14 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     const searchTerms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
     if (searchTerms.length === 0) return events;
     
-    return events.filter(event => {
+    const results = events.filter(event => {
       const searchText = searchIndexRef.current.get(event.event_id) || '';
       return searchTerms.every(term => searchText.includes(term));
     });
-  }, []);
+    
+    // Keep results sorted by last_updated
+    return sortEventsByLastUpdated(results);
+  }, [sortEventsByLastUpdated]);
 
   // Get cache key
   const getCacheKey = useCallback((filter: string): string => {
@@ -143,13 +147,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     
     cacheRef.current.set('justice', {
       events: justiceEvents,
-      hasMore: true,
+      hasMore: justiceEvents.length >= FETCH_SIZE || sortedInitial.length >= FETCH_SIZE,
       offset: 0
     });
     
     cacheRef.current.set('injustice', {
       events: injusticeEvents,
-      hasMore: true,
+      hasMore: injusticeEvents.length >= FETCH_SIZE || sortedInitial.length >= FETCH_SIZE,
       offset: 0
     });
     
@@ -176,10 +180,16 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       
       const response = await fetch(`/api/get/events?${params}`, {
         headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store' // Don't auto-revalidate
+        cache: 'no-store'
       });
       
-      if (!response.ok) return [];
+      if (!response.ok) {
+        cacheRef.current.set(cacheKey, {
+          ...cache,
+          hasMore: false
+        });
+        return [];
+      }
       
       const data = await response.json();
       const newEvents: Event[] = data.events || [];
@@ -209,6 +219,10 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       return [];
     } catch (error) {
       console.error('Error fetching events:', error);
+      cacheRef.current.set(cacheKey, {
+        ...cache,
+        hasMore: false
+      });
       return [];
     }
   }, [getCacheKey, sortEventsByLastUpdated, buildSearchIndex]);
@@ -221,7 +235,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     if (!cache) return [];
     
     if (searchQuery.trim()) {
-      // Search results are also sorted by last_updated
+      // Search across all cached events and keep sorted by last_updated
       return performSearch(searchQuery, cache.events);
     }
     
@@ -299,7 +313,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       return;
     }
     
-    // If searching, no need to fetch more (search already covers all cached)
+    // If searching, show more from search results if available
     if (searchQuery.trim()) {
       if (currentEvents.length > displayedEvents.length) {
         setDisplayedEvents(currentEvents.slice(0, nextPageEnd));
@@ -341,10 +355,13 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     const cacheKey = getCacheKey(activeFilter);
     const cache = cacheRef.current.get(cacheKey);
     
-    return (
-      displayedEvents.length < currentEvents.length ||
-      (Boolean(cache?.hasMore) && !searchQuery.trim())
-    );
+    // More events available if we haven't displayed all current events
+    const hasMoreInCurrentEvents = displayedEvents.length < currentEvents.length;
+    
+    // More events available from API if not searching and cache says there's more
+    const hasMoreFromAPI = !searchQuery.trim() && Boolean(cache?.hasMore);
+    
+    return hasMoreInCurrentEvents || hasMoreFromAPI;
   }, [getCurrentEvents, displayedEvents.length, activeFilter, getCacheKey, searchQuery]);
 
   const formatDate = useCallback((dateString: string | null) => {
