@@ -25,7 +25,7 @@ export default function ShareDonateClient({
   const [isDonateActive, setIsDonateActive] = useState(false);
 
   const eventUrl = `${baseUrl}/event/${eventId}`;
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&tn=${encodeURIComponent(upiNote)}`;
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&tn=${encodeURIComponent(upiNote)}`;
 
   const handleDonate = () => {
     setIsDonateActive(true);
