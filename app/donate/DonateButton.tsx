@@ -11,7 +11,8 @@ export default function DonateButton() {
   const upiName = process.env.NEXT_PUBLIC_UPI_NAME || '';
   const upiNote = process.env.NEXT_PUBLIC_UPI_NOTE || '';
 
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&tn=${encodeURIComponent(upiNote)}`;
+  // Build UPI link without encoding the @ symbol
+  const upiLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&tn=${encodeURIComponent(upiNote)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(upiLink)}`;
 
   const handleDonate = () => {
