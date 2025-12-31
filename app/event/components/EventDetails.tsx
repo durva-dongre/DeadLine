@@ -58,7 +58,7 @@ function EventCardSkeleton() {
   );
 }
 
-export function EventsClient({ initialEvents }: EventsClientProps) {
+function EventsClient({ initialEvents }: EventsClientProps) {
   const [displayedEvents, setDisplayedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState('All');
@@ -556,3 +556,5 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     </>
   );
 }
+
+export default EventsClient;
