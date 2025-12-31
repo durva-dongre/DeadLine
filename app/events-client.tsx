@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 
@@ -13,21 +13,17 @@ interface Event {
   summary: string | null;
   last_updated: string | null;
   incident_date: string | null;
+  slug?: string;
 }
 
 interface EventsClientProps {
   initialEvents: Event[];
 }
 
-interface FilterCache {
+interface CacheEntry {
   events: Event[];
   hasMore: boolean;
-  totalFetched: number;
-}
-
-interface SearchIndexEntry {
-  event_id: number;
-  searchText: string;
+  offset: number;
 }
 
 function EventCardSkeleton() {
@@ -65,196 +61,175 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const filterCacheRef = useRef<Map<string, FilterCache>>(new Map());
-  const searchIndexRef = useRef<Map<number, SearchIndexEntry>>(new Map());
-  const searchCacheRef = useRef<Map<string, Event[]>>(new Map());
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
+  const cacheRef = useRef<Map<string, CacheEntry>>(new Map());
+  const searchIndexRef = useRef<Map<number, string>>(new Map());
   const router = useRouter();
   
   const ITEMS_PER_PAGE = 30;
-  const ITEMS_PER_FETCH = 50;
+  const FETCH_SIZE = 50;
   const categories = ['All', 'Justice', 'Injustice'];
 
-  // Generate slug from event
-  const getSlug = useCallback((event: Event): string => {
-    const titleSlug = event.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    return `${event.event_id}-${titleSlug}`;
+  // Sort events by last_updated (most recent first)
+  const sortEventsByDate = useCallback((events: Event[]): Event[] => {
+    return [...events].sort((a, b) => {
+      const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+      const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+      return dateB - dateA; // Descending order (newest first)
+    });
   }, []);
 
-  // Build search index
+  // Build search index for fast searching
   const buildSearchIndex = useCallback((events: Event[]) => {
     events.forEach(event => {
       if (!searchIndexRef.current.has(event.event_id)) {
         const searchText = [
           event.title,
           event.summary || '',
+          event.incident_date || '',
           ...(event.tags || [])
         ]
           .join(' ')
           .toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .replace(/\s+/g, ' ')
           .trim();
         
-        searchIndexRef.current.set(event.event_id, {
-          event_id: event.event_id,
-          searchText
-        });
+        searchIndexRef.current.set(event.event_id, searchText);
       }
     });
   }, []);
 
-  // Search events
-  const searchEvents = useCallback((query: string, sourceEvents: Event[]): Event[] => {
-    if (!query.trim()) return sourceEvents;
+  // Fast search implementation
+  const performSearch = useCallback((query: string, events: Event[]): Event[] => {
+    if (!query.trim()) return events;
     
-    const cacheKey = `${activeFilter}-${query}`;
-    if (searchCacheRef.current.has(cacheKey)) {
-      return searchCacheRef.current.get(cacheKey)!;
-    }
+    const searchTerms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (searchTerms.length === 0) return events;
     
-    const searchTerms = query.toLowerCase().trim().split(/\s+/);
-    const matchedIds = new Set<number>();
+    return events.filter(event => {
+      const searchText = searchIndexRef.current.get(event.event_id) || '';
+      return searchTerms.every(term => searchText.includes(term));
+    });
+  }, []);
+
+  // Get cache key
+  const getCacheKey = useCallback((filter: string): string => {
+    return filter.toLowerCase();
+  }, []);
+
+  // Initialize cache with sorted initial events
+  useEffect(() => {
+    const sortedInitial = sortEventsByDate(initialEvents);
+    buildSearchIndex(sortedInitial);
     
-    searchIndexRef.current.forEach((entry, eventId) => {
-      const matches = searchTerms.every(term => entry.searchText.includes(term));
-      if (matches) matchedIds.add(eventId);
+    // Cache "All" events
+    cacheRef.current.set('all', {
+      events: sortedInitial,
+      hasMore: sortedInitial.length >= FETCH_SIZE,
+      offset: sortedInitial.length
     });
     
-    const results = sourceEvents.filter(event => matchedIds.has(event.event_id));
-    searchCacheRef.current.set(cacheKey, results);
+    // Cache filtered events
+    const justiceEvents = sortedInitial.filter(e => e.status.toLowerCase() === 'justice');
+    const injusticeEvents = sortedInitial.filter(e => e.status.toLowerCase() === 'injustice');
     
-    return results;
-  }, [activeFilter]);
+    cacheRef.current.set('justice', {
+      events: justiceEvents,
+      hasMore: true,
+      offset: 0
+    });
+    
+    cacheRef.current.set('injustice', {
+      events: injusticeEvents,
+      hasMore: true,
+      offset: 0
+    });
+    
+    setDisplayedEvents(sortedInitial.slice(0, ITEMS_PER_PAGE));
+  }, [initialEvents, sortEventsByDate, buildSearchIndex]);
 
-  // Fetch more events for current filter
+  // Fetch more events from API
   const fetchMoreEvents = useCallback(async (filter: string): Promise<Event[]> => {
-    const cache = filterCacheRef.current.get(filter);
+    const cacheKey = getCacheKey(filter);
+    const cache = cacheRef.current.get(cacheKey);
+    
     if (!cache || !cache.hasMore) return [];
     
     try {
-      const response = await fetch(
-        `/api/get/events?limit=${ITEMS_PER_FETCH}&offset=${cache.totalFetched}${
-          filter !== 'All' ? `&status=${filter.toLowerCase()}` : ''
-        }`,
-        {
-          headers: { 'Content-Type': 'application/json' },
-          cache: 'force-cache'
-        }
-      );
+      const params = new URLSearchParams({
+        limit: FETCH_SIZE.toString(),
+        offset: cache.offset.toString()
+      });
+      
+      if (filter !== 'All') {
+        params.append('status', filter.toLowerCase());
+      }
+      
+      const response = await fetch(`/api/get/events?${params}`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
       
       if (!response.ok) return [];
       
       const data = await response.json();
-      const newEvents = data.events || [];
+      const newEvents: Event[] = data.events || [];
       
-      buildSearchIndex(newEvents);
+      if (newEvents.length > 0) {
+        const sortedNew = sortEventsByDate(newEvents);
+        buildSearchIndex(sortedNew);
+        
+        const allEvents = [...cache.events, ...sortedNew];
+        const sortedAll = sortEventsByDate(allEvents);
+        
+        cacheRef.current.set(cacheKey, {
+          events: sortedAll,
+          hasMore: newEvents.length >= FETCH_SIZE,
+          offset: cache.offset + newEvents.length
+        });
+        
+        return sortedNew;
+      }
       
-      const updatedCache: FilterCache = {
-        events: [...cache.events, ...newEvents],
-        hasMore: newEvents.length === ITEMS_PER_FETCH,
-        totalFetched: cache.totalFetched + newEvents.length
-      };
-      
-      filterCacheRef.current.set(filter, updatedCache);
-      
-      return newEvents;
+      return [];
     } catch (error) {
       console.error('Error fetching events:', error);
       return [];
     }
-  }, [buildSearchIndex]);
+  }, [getCacheKey, sortEventsByDate, buildSearchIndex]);
 
-  // Get filtered events
-  const getFilteredEvents = useCallback((): Event[] => {
-    const cache = filterCacheRef.current.get(activeFilter);
+  // Get current events for display
+  const getCurrentEvents = useCallback((): Event[] => {
+    const cacheKey = getCacheKey(activeFilter);
+    const cache = cacheRef.current.get(cacheKey);
+    
     if (!cache) return [];
     
     if (searchQuery.trim()) {
-      return searchEvents(searchQuery, cache.events);
+      return performSearch(searchQuery, cache.events);
     }
     
     return cache.events;
-  }, [activeFilter, searchQuery, searchEvents]);
-
-  // Initialize cache with initial events
-  useEffect(() => {
-    buildSearchIndex(initialEvents);
-    
-    filterCacheRef.current.set('All', {
-      events: initialEvents,
-      hasMore: initialEvents.length === ITEMS_PER_FETCH,
-      totalFetched: initialEvents.length
-    });
-    
-    const justiceEvents = initialEvents.filter(e => e.status.toLowerCase() === 'justice');
-    const injusticeEvents = initialEvents.filter(e => e.status.toLowerCase() === 'injustice');
-    
-    filterCacheRef.current.set('Justice', {
-      events: justiceEvents,
-      hasMore: true,
-      totalFetched: 0
-    });
-    
-    filterCacheRef.current.set('Injustice', {
-      events: injusticeEvents,
-      hasMore: true,
-      totalFetched: 0
-    });
-    
-    setDisplayedEvents(initialEvents.slice(0, ITEMS_PER_PAGE));
-  }, [initialEvents, buildSearchIndex]);
-
-  // Load more events
-  const loadMore = useCallback(async () => {
-    if (loading) return;
-    
-    const cache = filterCacheRef.current.get(activeFilter);
-    if (!cache) return;
-    
-    const currentFiltered = getFilteredEvents();
-    const currentDisplayed = displayedEvents.length;
-    
-    // If we have more filtered events to show, just display them
-    if (currentDisplayed < currentFiltered.length) {
-      const nextBatch = currentFiltered.slice(0, currentDisplayed + ITEMS_PER_PAGE);
-      setDisplayedEvents(nextBatch);
-      return;
-    }
-    
-    // If we've shown all filtered events and there are more to fetch
-    if (cache.hasMore && currentDisplayed >= currentFiltered.length) {
-      setLoading(true);
-      const newEvents = await fetchMoreEvents(activeFilter);
-      
-      if (newEvents.length > 0) {
-        const allFiltered = getFilteredEvents();
-        const nextBatch = allFiltered.slice(0, currentDisplayed + ITEMS_PER_PAGE);
-        setDisplayedEvents(nextBatch);
-      }
-      
-      setLoading(false);
-    }
-  }, [loading, activeFilter, displayedEvents.length, getFilteredEvents, fetchMoreEvents]);
+  }, [activeFilter, searchQuery, getCacheKey, performSearch]);
 
   // Handle filter change
   const handleFilterChange = useCallback(async (filter: string) => {
     setActiveFilter(filter);
     setSearchQuery('');
-    searchCacheRef.current.clear();
+    setCurrentPage(1);
     
-    const cache = filterCacheRef.current.get(filter);
+    const cacheKey = getCacheKey(filter);
+    const cache = cacheRef.current.get(cacheKey);
+    
     if (!cache) return;
     
-    // If we don't have any events for this filter, fetch them
+    // If cache is empty and can fetch more, do initial fetch
     if (cache.events.length === 0 && cache.hasMore) {
       setLoading(true);
       await fetchMoreEvents(filter);
-      const updatedCache = filterCacheRef.current.get(filter);
+      const updatedCache = cacheRef.current.get(cacheKey);
       if (updatedCache) {
         setDisplayedEvents(updatedCache.events.slice(0, ITEMS_PER_PAGE));
       }
@@ -262,21 +237,22 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
     } else {
       setDisplayedEvents(cache.events.slice(0, ITEMS_PER_PAGE));
     }
-  }, [fetchMoreEvents]);
+  }, [getCacheKey, fetchMoreEvents]);
 
-  // Handle search
+  // Handle search with debounce
   const handleSearch = useCallback((value: string) => {
     setSearchQuery(value);
+    setCurrentPage(1);
     setIsSearching(true);
     
     setTimeout(() => {
-      const filtered = getFilteredEvents();
+      const filtered = getCurrentEvents();
       setDisplayedEvents(filtered.slice(0, ITEMS_PER_PAGE));
       setIsSearching(false);
-    }, 300);
-  }, [getFilteredEvents]);
+    }, 150);
+  }, [getCurrentEvents]);
 
-  // Toggle search
+  // Toggle search bar
   const toggleSearch = useCallback(() => {
     setSearchExpanded(prev => {
       const newState = !prev;
@@ -284,51 +260,78 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
         setTimeout(() => searchInputRef.current?.focus(), 100);
       } else {
         setSearchQuery('');
-        searchCacheRef.current.clear();
-        const cache = filterCacheRef.current.get(activeFilter);
+        setCurrentPage(1);
+        const cacheKey = getCacheKey(activeFilter);
+        const cache = cacheRef.current.get(cacheKey);
         if (cache) {
           setDisplayedEvents(cache.events.slice(0, ITEMS_PER_PAGE));
         }
       }
       return newState;
     });
-  }, [activeFilter]);
+  }, [activeFilter, getCacheKey]);
 
-  // Infinite scroll observer
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
+  // Load more handler
+  const handleLoadMore = useCallback(async () => {
+    if (loading) return;
+    
+    const currentEvents = getCurrentEvents();
+    const nextPageEnd = (currentPage + 1) * ITEMS_PER_PAGE;
+    
+    // If we have enough events in cache, just show more
+    if (nextPageEnd <= currentEvents.length) {
+      setDisplayedEvents(currentEvents.slice(0, nextPageEnd));
+      setCurrentPage(prev => prev + 1);
+      return;
     }
     
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    );
-    
-    if (loadMoreTriggerRef.current) {
-      observerRef.current.observe(loadMoreTriggerRef.current);
-    }
-    
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
+    // If searching, no need to fetch more (search already covers all cached)
+    if (searchQuery.trim()) {
+      if (currentEvents.length > displayedEvents.length) {
+        setDisplayedEvents(currentEvents.slice(0, nextPageEnd));
+        setCurrentPage(prev => prev + 1);
       }
-    };
-  }, [loadMore]);
-
-  // Check if there are more events to load
-  const hasMore = useMemo(() => {
-    const cache = filterCacheRef.current.get(activeFilter);
-    if (!cache) return false;
+      return;
+    }
     
-    const filtered = getFilteredEvents();
-    return displayedEvents.length < filtered.length || cache.hasMore;
-  }, [activeFilter, displayedEvents.length, getFilteredEvents]);
+    // Need to fetch more from API
+    const cacheKey = getCacheKey(activeFilter);
+    const cache = cacheRef.current.get(cacheKey);
+    
+    if (cache && cache.hasMore) {
+      setLoading(true);
+      const newEvents = await fetchMoreEvents(activeFilter);
+      
+      if (newEvents.length > 0) {
+        const updatedEvents = getCurrentEvents();
+        setDisplayedEvents(updatedEvents.slice(0, nextPageEnd));
+        setCurrentPage(prev => prev + 1);
+      }
+      
+      setLoading(false);
+    }
+  }, [
+    loading,
+    currentPage,
+    getCurrentEvents,
+    searchQuery,
+    displayedEvents.length,
+    activeFilter,
+    getCacheKey,
+    fetchMoreEvents
+  ]);
+
+  // Check if more content available
+  const hasMore = useCallback((): boolean => {
+    const currentEvents = getCurrentEvents();
+    const cacheKey = getCacheKey(activeFilter);
+    const cache = cacheRef.current.get(cacheKey);
+    
+    return (
+      displayedEvents.length < currentEvents.length ||
+      (cache?.hasMore && !searchQuery.trim())
+    );
+  }, [getCurrentEvents, displayedEvents.length, activeFilter, getCacheKey, searchQuery]);
 
   const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return 'NO DATE';
@@ -340,20 +343,17 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
   }, []);
 
   const getStatusLabel = useCallback((status: string) => {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'justice') return 'JUSTICE';
-    if (statusLower === 'injustice') return 'INJUSTICE';
     return status.toUpperCase();
   }, []);
 
   const handleEventClick = useCallback((event: Event, e: React.MouseEvent) => {
     e.preventDefault();
-    const slug = getSlug(event);
+    const slug = event.slug || `${event.event_id}-${event.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
     setClickedSlug(slug);
     setTimeout(() => {
       router.push(`/event/${slug}`);
     }, 150);
-  }, [router, getSlug]);
+  }, [router]);
 
   return (
     <>
@@ -394,7 +394,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => handleSearch(e.target.value)}
-                      placeholder="Search stories..."
+                      placeholder="Search by title, summary, date, or tags..."
                       className="flex-1 bg-transparent outline-none text-black placeholder-gray-400 font-mono text-xs"
                     />
                     <button
@@ -422,30 +422,32 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
       <main className="max-w-7xl mx-auto px-6 py-12">
         {isSearching ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...Array(9)].map((_, index) => (
+            {[...Array(6)].map((_, index) => (
               <EventCardSkeleton key={`search-skeleton-${index}`} />
             ))}
           </div>
         ) : displayedEvents.length === 0 ? (
           <div className="text-center py-24">
-            <div className="text-black font-normal tracking-wide text-lg font-mono">
+            <div className="text-black font-normal tracking-wide text-lg font-mono mb-4">
               {searchQuery ? 'NO STORIES MATCH YOUR SEARCH' : 'NO STORIES FOUND'}
             </div>
-            <button 
-              onClick={() => {
-                handleFilterChange('All');
-                setSearchQuery('');
-              }}
-              className="mt-4 text-black font-medium hover:text-gray-600 transition-colors font-mono"
-            >
-              VIEW ALL STORIES
-            </button>
+            {searchQuery && (
+              <button 
+                onClick={() => {
+                  setSearchQuery('');
+                  handleFilterChange('All');
+                }}
+                className="text-black font-medium hover:text-gray-600 transition-colors font-mono text-sm underline"
+              >
+                CLEAR SEARCH
+              </button>
+            )}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {displayedEvents.map((event, index) => {
-                const slug = getSlug(event);
+                const slug = event.slug || `${event.event_id}-${event.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
                 return (
                   <article 
                     key={`${event.event_id}-${index}`}
@@ -458,10 +460,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setClickedSlug(slug);
-                        setTimeout(() => {
-                          router.push(`/event/${slug}`);
-                        }, 150);
+                        handleEventClick(event, e as any);
                       }
                     }}
                   >
@@ -470,8 +469,6 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                         src={event.image_url || '/api/placeholder/400/300'}
                         alt={event.title}
                         loading={index < 9 ? 'eager' : 'lazy'}
-                        decoding="async"
-                        fetchPriority={index < 3 ? 'high' : 'auto'}
                         className="w-full h-full object-cover grayscale md:group-hover:grayscale-0 group-active:grayscale-0 transition-all duration-500 pointer-events-none"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -481,8 +478,12 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                     </div>
                     <div className="space-y-4">
                       <div className="flex items-center justify-between text-xs font-normal tracking-widest text-black font-mono">
-                        <time>{formatDate(event.last_updated)}</time>
-                        <span className="px-2 py-1 tracking-wide bg-black text-white">
+                        <time>{formatDate(event.incident_date)}</time>
+                        <span className={`px-2 py-1 tracking-wide ${
+                          event.status.toLowerCase() === 'justice' 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-black text-white'
+                        }`}>
                           {getStatusLabel(event.status)}
                         </span>
                       </div>
@@ -494,7 +495,7 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
                       </p>
                       {event.tags && event.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {event.tags.slice(0, 2).map((tag, tagIndex) => (
+                          {event.tags.slice(0, 3).map((tag, tagIndex) => (
                             <span
                               key={tagIndex}
                               className="text-xs font-normal text-black border border-black px-2 py-1 tracking-wide font-mono"
@@ -510,17 +511,19 @@ export function EventsClient({ initialEvents }: EventsClientProps) {
               })}
             </div>
 
-            {loading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
-                {[...Array(6)].map((_, index) => (
-                  <EventCardSkeleton key={`loading-${index}`} />
-                ))}
-              </div>
-            )}
-
-            {hasMore && !loading && (
-              <div ref={loadMoreTriggerRef} className="h-20 flex items-center justify-center mt-8">
-                <div className="text-gray-400 font-mono text-xs">Loading more...</div>
+            {hasMore() && (
+              <div className="flex justify-center mt-12">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loading}
+                  className={`px-8 py-3 rounded-full text-sm font-medium tracking-wide transition-all duration-300 font-mono ${
+                    loading
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-black text-white hover:bg-gray-800 hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  {loading ? 'LOADING...' : 'LOAD MORE'}
+                </button>
               </div>
             )}
           </>
