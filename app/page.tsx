@@ -88,52 +88,80 @@ function createBatches(events: Event[]): CacheBatch[] {
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://deadline.com';
   
-  const title = 'DEADLINE | Every Life Has a Voice';
-  const description = 'Tracking the stories nobody else remembers. From sewer deaths to forgotten injustices—we document the lives that mattered, then disappeared from headlines.';
+  const title = 'DEADLINE - Museum of Temporary Truths | Documenting Forgotten Lives & Untold Stories';
+  const description = 'Museum of Temporary Truths: DEADLINE documents sewer deaths, manual scavenging victims, and forgotten workers whose stories vanished from headlines. Every life has a voice. Explore unreported injustices and marginalized voices that deserve to be remembered.';
   const imageUrl = `${baseUrl}/og-default.png`;
+  const faviconUrl = `${baseUrl}/favicon.ico`;
 
   return {
-    title,
+    title: {
+      default: title,
+      template: '%s | DEADLINE - Museum of Temporary Truths'
+    },
     description,
     keywords: [
-      'sewer deaths',
-      'manual scavenging',
-      'forgotten victims',
-      'invisible workers',
-      'human rights documentation',
-      'social injustice',
+      'museum of temporary truths',
+      'DEADLINE news',
+      'sewer deaths India',
+      'manual scavenging victims',
+      'forgotten workers deaths',
+      'invisible workers documentation',
+      'human rights violations India',
+      'social injustice stories',
       'marginalized voices',
-      'untold stories',
+      'untold stories India',
       'sanitation workers deaths',
-      'everyday heroes',
-      'unreported news',
-      'dignity in death'
+      'unreported deaths',
+      'dignity in death',
+      'forgotten victims',
+      'human rights documentation',
+      'worker safety violations',
+      'caste discrimination deaths',
+      'overlooked tragedies',
+      'temporary truths',
+      'news that disappeared'
     ],
-    authors: [{ name: 'DEADLINE' }],
+    authors: [{ name: 'DEADLINE', url: baseUrl }],
     creator: 'DEADLINE',
     publisher: 'DEADLINE',
     applicationName: 'DEADLINE',
+    category: 'News & Documentation',
+    classification: 'Human Rights & Social Justice',
+    icons: {
+      icon: [
+        { url: faviconUrl, sizes: 'any' },
+        { url: `${baseUrl}/favicon-16x16.png`, sizes: '16x16', type: 'image/png' },
+        { url: `${baseUrl}/favicon-32x32.png`, sizes: '32x32', type: 'image/png' }
+      ],
+      apple: [
+        { url: `${baseUrl}/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' }
+      ],
+      other: [
+        { rel: 'mask-icon', url: `${baseUrl}/safari-pinned-tab.svg`, color: '#000000' }
+      ]
+    },
+    manifest: `${baseUrl}/site.webmanifest`,
     openGraph: {
       type: 'website',
       url: baseUrl,
-      title,
-      description,
-      siteName: 'DEADLINE',
+      title: 'DEADLINE - Museum of Temporary Truths',
+      description: 'Documenting forgotten lives, sewer deaths, and untold stories that vanished from headlines. Every life has a voice.',
+      siteName: 'DEADLINE - Museum of Temporary Truths',
       locale: 'en_US',
       images: [
         {
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: 'DEADLINE - Every life has a voice',
-          type: 'image/jpeg',
+          alt: 'DEADLINE - Museum of Temporary Truths: Documenting forgotten lives and untold stories',
+          type: 'image/png',
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title,
-      description: 'Tracking the stories nobody else remembers. Sewer deaths. Forgotten workers. Lives that mattered.',
+      title: 'DEADLINE - Museum of Temporary Truths',
+      description: 'Documenting sewer deaths, forgotten workers, and lives that briefly made headlines then vanished. Every life has a voice.',
       images: [imageUrl],
       creator: '@deadline',
       site: '@deadline',
@@ -150,10 +178,23 @@ export async function generateMetadata(): Promise<Metadata> {
         'max-snippet': -1,
       },
     },
+    verification: {
+      google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,
+      yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION,
+      yahoo: process.env.NEXT_PUBLIC_YAHOO_VERIFICATION,
+    },
     alternates: {
       canonical: baseUrl,
+      languages: {
+        'en-US': baseUrl,
+        'en': baseUrl,
+      }
     },
     metadataBase: new URL(baseUrl),
+    other: {
+      'msapplication-TileColor': '#000000',
+      'theme-color': '#ffffff',
+    }
   };
 }
 
@@ -170,13 +211,13 @@ export default async function DeadlineEventsPage() {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'DEADLINE',
-    description: 'Every Life Has a Voice - Museum of Temporary Truths',
+    name: 'DEADLINE - Museum of Temporary Truths',
+    description: 'Museum of Temporary Truths documenting sewer deaths, manual scavenging victims, forgotten workers, and marginalized lives that disappeared from news coverage. Every life has a voice.',
     url: baseUrl,
     about: {
       '@type': 'Thing',
       name: 'Human Rights and Social Justice Documentation',
-      description: 'Documenting sewer deaths, forgotten workers, and marginalized lives that disappeared from news coverage'
+      description: 'Documenting sewer deaths, manual scavenging, forgotten workers, and marginalized lives that disappeared from news coverage'
     },
     publisher: {
       '@type': 'Organization',
@@ -185,8 +226,14 @@ export default async function DeadlineEventsPage() {
       logo: {
         '@type': 'ImageObject',
         url: `${baseUrl}/logo.png`,
+        width: 600,
+        height: 60
       },
-      description: 'DEADLINE documents the forgotten: sewer deaths, marginalized workers, and lives that briefly made headlines, then vanished. Every life has a voice.'
+      description: 'Museum of Temporary Truths: DEADLINE documents the forgotten—sewer deaths, marginalized workers, and lives that briefly made headlines then vanished. Every life has a voice.',
+      sameAs: [
+        'https://twitter.com/deadline',
+        'https://facebook.com/deadline'
+      ]
     },
     potentialAction: {
       '@type': 'SearchAction',
@@ -195,7 +242,25 @@ export default async function DeadlineEventsPage() {
         urlTemplate: `${baseUrl}/search?q={search_term_string}`
       },
       'query-input': 'required name=search_term_string'
+    },
+    mainEntity: {
+      '@type': 'CollectionPage',
+      name: 'Documented Events',
+      description: 'Archive of forgotten lives and untold stories'
     }
+  };
+
+  const breadcrumbData = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: baseUrl
+      }
+    ]
   };
   
   return (
@@ -204,34 +269,46 @@ export default async function DeadlineEventsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
       
       <div className="min-h-screen bg-white">
-        <section className="bg-white">
+        <header className="bg-white">
           <div className="max-w-7xl mx-auto px-6 py-16 text-center">
             <h1 className="text-6xl md:text-8xl font-black tracking-tight text-black mb-4" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
               DEADLINE
             </h1>
-            <p className="text-lg font-normal text-black tracking-wide font-mono">
+            <p className="text-lg font-normal text-black tracking-wide font-mono mb-2">
               Museum of Temporary Truths
             </p>
+            <p className="text-sm text-gray-700 max-w-3xl mx-auto mt-4 leading-relaxed">
+              Documenting forgotten lives, sewer deaths, and untold stories that vanished from headlines. Every life has a voice.
+            </p>
           </div>
-        </section>
+        </header>
         
-        <EventsClient batches={batches} allEvents={allEventsSorted} />
+        <main>
+          <EventsClient batches={batches} allEvents={allEventsSorted} />
+        </main>
         
         <footer className="border-t border-black bg-white mt-24">
           <div className="max-w-7xl mx-auto px-6 py-12">
             <div className="text-center">
-              <h3 className="text-2xl font-black tracking-tight mb-4 text-black" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>DEADLINE</h3>
+              <h2 className="text-2xl font-black tracking-tight mb-4 text-black" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>DEADLINE</h2>
               <p className="text-sm font-normal text-black tracking-wide font-mono mb-6">
                 Museum of Temporary Truths
               </p>
-              <div className="flex justify-center gap-8 text-sm font-mono">
+              <nav className="flex justify-center gap-8 text-sm font-mono mb-8" aria-label="Footer navigation">
                 <a href="/about" className="text-black hover:underline" title="About DEADLINE - Our Mission">About</a>
-                <a href="/report" className="text-black hover:underline" title="Report about a Story">Report</a>
+                <a href="/report" className="text-black hover:underline" title="Report a Story">Report</a>
                 <a href="/policies" className="text-black hover:underline" title="Our Policies">Policies</a>
                 <a href="/donate" className="text-black hover:underline" title="Support Our Work">Donate</a>
-              </div>
+              </nav>
+              <p className="text-xs text-gray-600">
+                © {new Date().getFullYear()} DEADLINE. Documenting lives that matter.
+              </p>
             </div>
           </div>
         </footer>

@@ -9,6 +9,8 @@ interface ImageSliderProps {
 export default function ImageSlider({ images }: ImageSliderProps) {
   const [imageStates, setImageStates] = useState<Record<number, { loaded: boolean; error: boolean }>>({});
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [fullscreenImage, setFullscreenImage] = useState<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
   const sliderRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -16,6 +18,17 @@ export default function ImageSlider({ images }: ImageSliderProps) {
     if (!images || images.length === 0) return [];
     return [...images, ...images, ...images];
   }, [images]);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   useEffect(() => {
     if (extendedImages.length > 0) {
@@ -97,6 +110,29 @@ export default function ImageSlider({ images }: ImageSliderProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (fullscreenImage !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [fullscreenImage]);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && fullscreenImage !== null) {
+        setFullscreenImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [fullscreenImage]);
+
   const handleImageError = (index: number) => {
     setImageStates(prev => ({ 
       ...prev, 
@@ -112,30 +148,74 @@ export default function ImageSlider({ images }: ImageSliderProps) {
   };
 
   const handleImageClick = (index: number) => {
-    setActiveImageIndex(prev => prev === index ? null : index);
+    if (isDesktop) {
+      setFullscreenImage(index);
+    } else {
+      setActiveImageIndex(prev => prev === index ? null : index);
+    }
+  };
+
+  const handleCloseFullscreen = () => {
+    setFullscreenImage(null);
+  };
+
+  const handleNextImage = () => {
+    if (fullscreenImage !== null) {
+      const nextIndex = (fullscreenImage + 1) % extendedImages.length;
+      setFullscreenImage(nextIndex);
+    }
+  };
+
+  const handlePrevImage = () => {
+    if (fullscreenImage !== null) {
+      const prevIndex = (fullscreenImage - 1 + extendedImages.length) % extendedImages.length;
+      setFullscreenImage(prevIndex);
+    }
   };
 
   if (!images || images.length === 0) {
     return (
-      <section className="mb-6">
-        <h3 className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black font-mono">
+      <section className="mb-6" aria-labelledby="gallery-heading">
+        <h2 id="gallery-heading" className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black font-mono">
           IMAGE GALLERY
-        </h3>
-        <div className="text-center py-6 text-gray-400">
+        </h2>
+        <div className="text-center py-6 text-gray-400" role="status">
           <p className="text-sm font-mono">No images to display</p>
         </div>
       </section>
     );
   }
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "ImageGallery",
+    "numberOfItems": images.length,
+    "image": images.map((img, index) => ({
+      "@type": "ImageObject",
+      "contentUrl": img,
+      "name": `Gallery image ${index + 1}`,
+      "position": index + 1
+    }))
+  };
+
   return (
     <>
-      <section className="mb-6">
-        <h3 className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black font-mono">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+
+      <section 
+        className="mb-6" 
+        aria-labelledby="gallery-heading"
+        itemScope 
+        itemType="https://schema.org/ImageGallery"
+      >
+        <h2 id="gallery-heading" className="text-lg font-bold uppercase tracking-tight mb-3 border-b-2 border-black pb-2 text-black font-mono">
           IMAGE GALLERY
-        </h3>
+        </h2>
         <div className="relative">
-          <div
+          <nav 
             ref={sliderRef}
             className="flex overflow-x-auto gap-3 pb-3 scrollbar-hide cursor-grab active:cursor-grabbing"
             style={{
@@ -144,6 +224,8 @@ export default function ImageSlider({ images }: ImageSliderProps) {
               WebkitOverflowScrolling: 'touch',
               willChange: 'scroll-position'
             }}
+            role="list"
+            aria-label="Image gallery carousel"
           >
             {extendedImages.map((image, index) => {
               const state = imageStates[index] || { loaded: false, error: false };
@@ -155,21 +237,27 @@ export default function ImageSlider({ images }: ImageSliderProps) {
                 return null;
               }
 
+              const imageNumber = (index % images.length) + 1;
+
               return (
-                <div
+                <figure
                   key={`image-${index}`}
                   className="flex-shrink-0 w-70 h-52 bg-gray-50 overflow-hidden relative border border-gray-200 group cursor-pointer"
                   onClick={() => handleImageClick(index)}
+                  itemScope
+                  itemType="https://schema.org/ImageObject"
+                  role="listitem"
                 >
                   {!state.loaded && (
-                    <div className="absolute inset-0 bg-gray-200">
+                    <div className="absolute inset-0 bg-gray-200" role="status" aria-label="Loading image">
                       <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-shimmer"></div>
+                      <span className="sr-only">Loading image {imageNumber}</span>
                     </div>
                   )}
                   <img
                     src={isEager ? image : undefined}
                     data-src={!isEager ? image : undefined}
-                    alt={`Gallery image ${(index % images.length) + 1}`}
+                    alt={`Gallery image ${imageNumber}`}
                     className={`w-full h-full object-cover select-none transition-all duration-300 ${
                       isActive ? '' : 'grayscale md:group-hover:grayscale-0'
                     } ${
@@ -181,18 +269,76 @@ export default function ImageSlider({ images }: ImageSliderProps) {
                     loading={isEager ? 'eager' : 'lazy'}
                     decoding="async"
                     fetchPriority={isPriority ? 'high' : 'auto'}
+                    itemProp="contentUrl"
                     ref={(el) => {
                       if (el && !isEager && observerRef.current) {
                         observerRef.current.observe(el);
                       }
                     }}
                   />
-                </div>
+                  <meta itemProp="name" content={`Gallery image ${imageNumber}`} />
+                </figure>
               );
             })}
-          </div>
+          </nav>
         </div>
       </section>
+
+      {fullscreenImage !== null && isDesktop && (
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center"
+          onClick={handleCloseFullscreen}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Fullscreen image viewer"
+        >
+          <button
+            onClick={handleCloseFullscreen}
+            className="absolute top-4 right-4 z-10 bg-white text-black w-10 h-10 flex items-center justify-center hover:bg-gray-200 transition-colors border-2 border-black font-bold text-xl"
+            aria-label="Close fullscreen view"
+          >
+            ×
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePrevImage();
+            }}
+            className="absolute left-4 z-10 bg-white text-black w-10 h-10 flex items-center justify-center hover:bg-gray-200 transition-colors border-2 border-black font-bold text-xl"
+            aria-label="Previous image"
+          >
+            ‹
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNextImage();
+            }}
+            className="absolute right-4 z-10 bg-white text-black w-10 h-10 flex items-center justify-center hover:bg-gray-200 transition-colors border-2 border-black font-bold text-xl"
+            aria-label="Next image"
+          >
+            ›
+          </button>
+
+          <div
+            className="max-w-screen-xl max-h-screen w-full h-full p-8 flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={extendedImages[fullscreenImage]}
+              alt={`Gallery image ${(fullscreenImage % images.length) + 1} - Fullscreen view`}
+              className="max-w-full max-h-full object-contain"
+              draggable={false}
+            />
+          </div>
+
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-90 px-3 py-1 text-black text-sm font-mono">
+            {(fullscreenImage % images.length) + 1} / {images.length}
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar {
