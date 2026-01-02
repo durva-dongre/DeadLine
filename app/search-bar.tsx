@@ -95,7 +95,7 @@ export default function SearchBar({ allEvents, activeFilter, onSearchResults, is
   // Focus input when expanded
   useEffect(() => {
     if (isExpanded) {
-      setTimeout(() => searchInputRef.current?.focus(), 100);
+      setTimeout(() => searchInputRef.current?.focus(), 150);
     } else {
       setSearchQuery('');
       onSearchResults(null, false);
@@ -119,18 +119,44 @@ export default function SearchBar({ allEvents, activeFilter, onSearchResults, is
   return (
     <div className="relative h-[36px] flex items-center">
       <div 
-        className={`relative flex items-center gap-2 bg-gray-100 rounded-full transition-all duration-300 ease-out h-[36px] ${
+        className={`relative flex items-center overflow-hidden rounded-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] h-[36px] ${
           isExpanded 
-            ? 'w-full hover:bg-gray-100' 
-            : 'w-auto hover:bg-gray-200 cursor-pointer hover:scale-105 active:scale-95'
+            ? 'w-full bg-white border-2 border-black shadow-lg' 
+            : 'w-auto bg-gray-100 hover:bg-gray-200 cursor-pointer shadow-sm hover:shadow-md'
         }`}
+        style={{
+          transform: isExpanded ? 'scale(1)' : 'scale(1)',
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+        }}
         onClick={!isExpanded ? onToggle : undefined}
+        onMouseEnter={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.transform = 'scale(1)';
+          }
+        }}
+        onMouseDown={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.transform = 'scale(0.95)';
+          }
+        }}
+        onMouseUp={(e) => {
+          if (!isExpanded) {
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }
+        }}
       >
         {/* Search Icon */}
-        <div className={`flex items-center justify-center transition-all duration-300 ${
-          isExpanded ? 'pl-4' : 'pl-3 md:pl-4'
+        <div className={`flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          isExpanded ? 'pl-4 pr-2' : 'pl-3 md:pl-4 pr-2'
         }`}>
-          <Search className="w-4 h-4 text-black" />
+          <Search className={`w-4 h-4 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            isExpanded ? 'text-gray-500' : 'text-black'
+          }`} />
         </div>
 
         {/* Input Field */}
@@ -139,31 +165,43 @@ export default function SearchBar({ allEvents, activeFilter, onSearchResults, is
           type="text"
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
-          placeholder={isExpanded ? "Search stories..." : ""}
-          className={`bg-transparent text-black placeholder-gray-400 font-mono text-xs md:text-sm outline-none transition-all duration-300 ${
+          placeholder="Search stories..."
+          className={`bg-transparent text-black placeholder-gray-400 font-mono text-xs md:text-sm outline-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
             isExpanded 
-              ? 'w-full opacity-100 pr-2' 
-              : 'w-0 opacity-0 pointer-events-none'
+              ? 'w-full opacity-100 pr-2 translate-x-0' 
+              : 'w-0 opacity-0 pointer-events-none -translate-x-2'
           }`}
+          style={{
+            transitionDelay: isExpanded ? '100ms' : '0ms'
+          }}
         />
 
         {/* Button Text / Close Button */}
-        <div className={`flex items-center transition-all duration-300 ${
-          isExpanded ? 'pr-2' : 'pr-3 md:pr-4'
+        <div className={`flex items-center transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          isExpanded ? 'pr-2 opacity-100 translate-x-0' : 'pr-3 md:pr-4 opacity-100 translate-x-0'
         }`}>
-          {!isExpanded ? (
+          <div className={`transition-all duration-400 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            isExpanded ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'
+          }`}>
             <span className="text-xs font-medium tracking-wide text-black font-mono whitespace-nowrap">
               SEARCH
             </span>
-          ) : (
+          </div>
+          
+          <div className={`transition-all duration-400 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            isExpanded ? 'opacity-100 w-auto scale-100' : 'opacity-0 w-0 scale-75 overflow-hidden'
+          }`}
+          style={{
+            transitionDelay: isExpanded ? '200ms' : '0ms'
+          }}>
             <button
               onClick={handleClear}
-              className="w-6 h-6 rounded-full bg-black text-white hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+              className="w-6 h-6 rounded-full bg-black text-white hover:bg-gray-800 transition-all duration-200 ease-out hover:scale-110 active:scale-90 flex items-center justify-center"
               aria-label="Close search"
             >
               <X className="w-3.5 h-3.5" />
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

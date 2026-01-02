@@ -11,7 +11,7 @@ export default function ImageSlider({ images }: ImageSliderProps) {
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<number | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [showControls, setShowControls] = useState(false);
+  const [showControls, setShowControls] = useState(true);
   const sliderRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -160,7 +160,14 @@ export default function ImageSlider({ images }: ImageSliderProps) {
     
     hideControlsTimerRef.current = setTimeout(() => {
       setShowControls(false);
-    }, 2500);
+    }, 2000);
+  };
+
+  const handleMouseLeave = () => {
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+    }
+    setShowControls(false);
   };
 
   const handleImageError = (index: number) => {
@@ -188,7 +195,7 @@ export default function ImageSlider({ images }: ImageSliderProps) {
 
   const handleCloseFullscreen = () => {
     setFullscreenImage(null);
-    setShowControls(false);
+    setShowControls(true);
     if (hideControlsTimerRef.current) {
       clearTimeout(hideControlsTimerRef.current);
     }
@@ -321,82 +328,105 @@ export default function ImageSlider({ images }: ImageSliderProps) {
 
       {fullscreenImage !== null && isDesktop && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center transition-all duration-300"
+          className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ 
             backdropFilter: 'blur(12px)', 
-            backgroundColor: 'rgba(0, 0, 0, 0.85)' 
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            animation: 'fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
           onClick={handleCloseFullscreen}
           onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen image viewer"
         >
           <div
-            className="relative w-full h-full flex items-center justify-center p-8"
+            className="relative flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
+            style={{
+              animation: 'scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
           >
             <img
               src={extendedImages[fullscreenImage]}
               alt={`Gallery image ${(fullscreenImage % images.length) + 1} - Fullscreen view`}
-              className="w-auto h-auto object-contain select-none"
+              className="select-none"
               style={{
-                maxWidth: '95vw',
-                maxHeight: '95vh',
-                minWidth: '60vw',
-                minHeight: '60vh'
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                minWidth: '50vw',
+                minHeight: '50vh',
+                objectFit: 'contain',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
               }}
               draggable={false}
             />
             
+            {/* Close button - top right of image */}
             <button
               onClick={handleCloseFullscreen}
-              className={`absolute top-0 right-0 bg-white text-black px-6 py-5 transition-all duration-300 hover:bg-gray-200 ${
-                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'
-              }`}
+              className="absolute -top-12 -right-12 bg-white text-black p-3 transition-all duration-300 hover:bg-gray-200 hover:scale-110 active:scale-95"
+              style={{
+                opacity: showControls ? 1 : 0,
+                transform: showControls ? 'translate(0, 0)' : 'translate(8px, -8px)',
+                pointerEvents: showControls ? 'auto' : 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
               aria-label="Close fullscreen view"
               title="Close (Esc)"
-              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
             </button>
 
+            {/* Previous button - left edge of image */}
             <button
               onClick={handlePrevImage}
-              className={`absolute left-0 top-1/2 -translate-y-1/2 bg-white text-black px-5 py-8 transition-all duration-300 hover:bg-gray-200 ${
-                showControls ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none'
-              }`}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-16 bg-white text-black p-4 transition-all duration-300 hover:bg-gray-200 hover:scale-110 active:scale-95"
+              style={{
+                opacity: showControls ? 1 : 0,
+                transform: showControls ? 'translate(-64px, -50%)' : 'translate(-80px, -50%)',
+                pointerEvents: showControls ? 'auto' : 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
               aria-label="Previous image"
               title="Previous (←)"
-              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
 
+            {/* Next button - right edge of image */}
             <button
               onClick={handleNextImage}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 bg-white text-black px-5 py-8 transition-all duration-300 hover:bg-gray-200 ${
-                showControls ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
-              }`}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-16 bg-white text-black p-4 transition-all duration-300 hover:bg-gray-200 hover:scale-110 active:scale-95"
+              style={{
+                opacity: showControls ? 1 : 0,
+                transform: showControls ? 'translate(64px, -50%)' : 'translate(80px, -50%)',
+                pointerEvents: showControls ? 'auto' : 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
               aria-label="Next image"
               title="Next (→)"
-              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
 
+            {/* Counter - bottom of image */}
             <div 
-              className={`absolute bottom-0 left-1/2 -translate-x-1/2 bg-white text-black px-8 py-4 text-base font-mono font-bold transition-all duration-300 ${
-                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
-              }`}
-              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
+              className="absolute -bottom-12 left-1/2 -translate-x-1/2 bg-white text-black px-6 py-3 text-sm font-mono font-bold"
+              style={{
+                opacity: showControls ? 1 : 0,
+                transform: showControls ? 'translate(-50%, 0)' : 'translate(-50%, 8px)',
+                pointerEvents: showControls ? 'auto' : 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
             >
               {(fullscreenImage % images.length) + 1} / {images.length}
             </div>
@@ -422,6 +452,24 @@ export default function ImageSlider({ images }: ImageSliderProps) {
         }
         .animate-shimmer {
           animation: shimmer 1.5s infinite;
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
       `}</style>
     </>
