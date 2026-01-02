@@ -118,36 +118,54 @@ export default function SearchBar({ allEvents, activeFilter, onSearchResults, is
 
   return (
     <div className="relative h-[36px] flex items-center">
-      {!isExpanded ? (
-        <button
-          onClick={onToggle}
-          className="px-3 md:px-4 py-2 rounded-full text-xs font-medium tracking-wide transition-all duration-300 font-mono whitespace-nowrap h-[36px] bg-gray-100 text-black hover:bg-gray-200 hover:scale-105 active:scale-95 flex items-center gap-2"
-        >
-          <Search className="w-4 h-4" />
-          SEARCH
-        </button>
-      ) : (
-        <div className="flex items-center gap-2 w-full animate-in fade-in duration-300">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search stories..."
-              className="w-full h-[36px] pl-10 pr-4 rounded-full border-2 border-black bg-white text-black placeholder-gray-400 font-mono text-xs md:text-sm outline-none shadow-sm"
-            />
-          </div>
-          <button
-            onClick={handleClear}
-            className="flex-shrink-0 w-[36px] h-[36px] rounded-full bg-black text-white hover:bg-gray-800 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center shadow-md"
-            aria-label="Close search"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      <div 
+        className={`relative flex items-center gap-2 bg-gray-100 rounded-full transition-all duration-300 ease-out h-[36px] ${
+          isExpanded 
+            ? 'w-full hover:bg-gray-100' 
+            : 'w-auto hover:bg-gray-200 cursor-pointer hover:scale-105 active:scale-95'
+        }`}
+        onClick={!isExpanded ? onToggle : undefined}
+      >
+        {/* Search Icon */}
+        <div className={`flex items-center justify-center transition-all duration-300 ${
+          isExpanded ? 'pl-4' : 'pl-3 md:pl-4'
+        }`}>
+          <Search className="w-4 h-4 text-black" />
         </div>
-      )}
+
+        {/* Input Field */}
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder={isExpanded ? "Search stories..." : ""}
+          className={`bg-transparent text-black placeholder-gray-400 font-mono text-xs md:text-sm outline-none transition-all duration-300 ${
+            isExpanded 
+              ? 'w-full opacity-100 pr-2' 
+              : 'w-0 opacity-0 pointer-events-none'
+          }`}
+        />
+
+        {/* Button Text / Close Button */}
+        <div className={`flex items-center transition-all duration-300 ${
+          isExpanded ? 'pr-2' : 'pr-3 md:pr-4'
+        }`}>
+          {!isExpanded ? (
+            <span className="text-xs font-medium tracking-wide text-black font-mono whitespace-nowrap">
+              SEARCH
+            </span>
+          ) : (
+            <button
+              onClick={handleClear}
+              className="w-6 h-6 rounded-full bg-black text-white hover:bg-gray-800 transition-all duration-200 hover:scale-110 active:scale-95 flex items-center justify-center"
+              aria-label="Close search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

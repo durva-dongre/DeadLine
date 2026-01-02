@@ -160,7 +160,7 @@ export default function ImageSlider({ images }: ImageSliderProps) {
     
     hideControlsTimerRef.current = setTimeout(() => {
       setShowControls(false);
-    }, 2000);
+    }, 2500);
   };
 
   const handleImageError = (index: number) => {
@@ -333,26 +333,32 @@ export default function ImageSlider({ images }: ImageSliderProps) {
           aria-label="Fullscreen image viewer"
         >
           <div
-            className="relative w-full h-full flex items-center justify-center"
+            className="relative w-full h-full flex items-center justify-center p-8"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={extendedImages[fullscreenImage]}
               alt={`Gallery image ${(fullscreenImage % images.length) + 1} - Fullscreen view`}
-              className="max-w-[90vw] max-h-[90vh] object-contain select-none"
+              className="w-auto h-auto object-contain select-none"
+              style={{
+                maxWidth: '95vw',
+                maxHeight: '95vh',
+                minWidth: '60vw',
+                minHeight: '60vh'
+              }}
               draggable={false}
             />
             
             <button
               onClick={handleCloseFullscreen}
-              className={`absolute top-0 right-0 bg-black bg-opacity-80 hover:bg-opacity-100 text-white p-4 transition-all duration-300 ${
-                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
+              className={`absolute top-0 right-0 bg-white text-black px-6 py-5 transition-all duration-300 hover:bg-gray-200 ${
+                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'
               }`}
               aria-label="Close fullscreen view"
               title="Close (Esc)"
-              style={{ transition: 'opacity 0.3s, transform 0.3s' }}
+              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
@@ -360,37 +366,37 @@ export default function ImageSlider({ images }: ImageSliderProps) {
 
             <button
               onClick={handlePrevImage}
-              className={`absolute left-0 top-1/2 -translate-y-1/2 bg-black bg-opacity-80 hover:bg-opacity-100 text-white p-4 transition-all duration-300 ${
-                showControls ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+              className={`absolute left-0 top-1/2 -translate-y-1/2 bg-white text-black px-5 py-8 transition-all duration-300 hover:bg-gray-200 ${
+                showControls ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none'
               }`}
               aria-label="Previous image"
               title="Previous (←)"
-              style={{ transition: 'opacity 0.3s, transform 0.3s' }}
+              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
 
             <button
               onClick={handleNextImage}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 bg-black bg-opacity-80 hover:bg-opacity-100 text-white p-4 transition-all duration-300 ${
-                showControls ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'
+              className={`absolute right-0 top-1/2 -translate-y-1/2 bg-white text-black px-5 py-8 transition-all duration-300 hover:bg-gray-200 ${
+                showControls ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
               }`}
               aria-label="Next image"
               title="Next (→)"
-              style={{ transition: 'opacity 0.3s, transform 0.3s' }}
+              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" strokeLinejoin="miter">
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
 
             <div 
-              className={`absolute bottom-0 left-1/2 -translate-x-1/2 bg-black bg-opacity-80 text-white px-6 py-3 text-sm font-mono font-bold transition-all duration-300 ${
-                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+              className={`absolute bottom-0 left-1/2 -translate-x-1/2 bg-white text-black px-8 py-4 text-base font-mono font-bold transition-all duration-300 ${
+                showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
               }`}
-              style={{ transition: 'opacity 0.3s, transform 0.3s' }}
+              style={{ transition: 'opacity 0.3s ease, transform 0.3s ease' }}
             >
               {(fullscreenImage % images.length) + 1} / {images.length}
             </div>
