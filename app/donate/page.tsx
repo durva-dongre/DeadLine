@@ -19,7 +19,6 @@ interface DonationData {
   goal: number;
 }
 
-// Cached function to fetch donations
 const getDonations = unstable_cache(
   async (): Promise<DonationData> => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -27,7 +26,7 @@ const getDonations = unstable_cache(
     try {
       const response = await fetch(`${baseUrl}/api/get/donate`, {
         next: { 
-          revalidate: 60, // Revalidate every 60 seconds
+          revalidate: 60,
           tags: ['donations-cache'] 
         }
       });
@@ -50,7 +49,6 @@ const getDonations = unstable_cache(
       throw new Error(result.message || 'Failed to fetch donations');
     } catch (error) {
       console.error('Error fetching donations:', error);
-      // Return default data on error
       return {
         donations: [],
         totalAmount: 0,
@@ -72,27 +70,53 @@ export default async function DonationsPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header */}
       <header className="border-b border-black bg-white sticky top-0 z-40">
         <div className="px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between max-w-5xl mx-auto">
-            <a
-              href="/"
-              className="flex items-center gap-2 text-black hover:opacity-60 transition-opacity duration-300"
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="text-lg sm:text-xl font-black tracking-tight uppercase" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    if (window.history.length > 1 && document.referrer.includes(window.location.hostname)) {
+                      window.history.back();
+                    } else {
+                      window.location.href = '/';
+                    }
+                  }
+                }}
+                className="text-black hover:opacity-70 transition-opacity flex items-center cursor-pointer"
+                title="Go back"
+                aria-label="Go back"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <a
+                href="/"
+                className="text-lg sm:text-xl font-black tracking-tight uppercase text-black hover:opacity-80 transition-opacity"
+                style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                title="DEADLINE - Museum of Temporary Truths"
+                aria-label="DEADLINE - Museum of Temporary Truths Homepage"
+              >
                 DEADLINE
-              </span>
-            </a>
+              </a>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="flex-1 px-4 sm:px-6 py-6 max-w-5xl mx-auto w-full">
-        {/* Hero Section */}
         <div className="mb-6 space-y-2">
           <h1 
             className="text-2xl sm:text-3xl font-bold tracking-tight text-black leading-tight"
@@ -105,7 +129,6 @@ export default async function DonationsPage() {
           </p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white border border-black p-4 sm:p-5 hover:shadow-lg transition-all duration-300 group">
             <Heart className="w-5 h-5 text-black mb-3 group-hover:scale-110 transition-transform duration-300" />
@@ -132,7 +155,6 @@ export default async function DonationsPage() {
           </div>
         </div>
 
-        {/* Progress Section */}
         <div className="mb-8">
           <div className="bg-white border border-black p-6">
             <div className="flex justify-between items-center mb-4">
@@ -153,10 +175,8 @@ export default async function DonationsPage() {
           </div>
         </div>
 
-        {/* Donate Button */}
         <DonateButton />
 
-        {/* Update Notice */}
         <div className="bg-gray-50 border border-black p-4 mb-8 flex items-start gap-3">
           <Clock className="w-4 h-4 text-gray-600 flex-shrink-0 mt-0.5" />
           <p className="text-xs font-mono text-gray-600 leading-relaxed">
@@ -164,7 +184,6 @@ export default async function DonationsPage() {
           </p>
         </div>
 
-        {/* Recent Donations */}
         <div>
           <h2 
             className="text-xl sm:text-2xl font-bold text-black mb-6 tracking-tight"
@@ -215,22 +234,24 @@ export default async function DonationsPage() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="bg-black text-white py-6 border-t-2 border-black mt-8">
         <div className="px-4 sm:px-6">
           <div className="text-center mb-4 max-w-5xl mx-auto">
             <h2 className="text-base sm:text-lg font-black tracking-tight uppercase mb-2" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
               DEADLINE
             </h2>
-            <p className="text-white text-xs sm:text-sm font-mono">
+            <p className="text-white text-xs sm:text-sm font-mono mb-4">
               Museum of Temporary Truths
             </p>
           </div>
-          <nav className="flex justify-center space-x-4 sm:space-x-6 max-w-5xl mx-auto">
+          <nav className="flex justify-center space-x-4 sm:space-x-6 mb-4 max-w-5xl mx-auto">
             <a href="/about" className="text-xs font-mono text-white hover:underline transition-all duration-300">About</a>
             <a href="/report" className="text-xs font-mono text-white hover:underline transition-all duration-300">Report</a>
             <a href="/policies" className="text-xs font-mono text-white hover:underline transition-all duration-300">Policies</a>
           </nav>
+          <p className="text-center text-xs text-white opacity-70 font-mono max-w-5xl mx-auto">
+            © {new Date().getFullYear()} DEADLINE. Documenting lives that matter.
+          </p>
         </div>
       </footer>
 

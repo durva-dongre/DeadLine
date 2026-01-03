@@ -100,26 +100,36 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     keywords: [
-      'museum of temporary truths',
-      'DEADLINE news',
-      'sewer deaths India',
-      'manual scavenging victims',
-      'forgotten workers deaths',
-      'invisible workers documentation',
-      'human rights violations India',
-      'social injustice stories',
-      'marginalized voices',
-      'untold stories India',
-      'sanitation workers deaths',
-      'unreported deaths',
-      'dignity in death',
-      'forgotten victims',
-      'human rights documentation',
-      'worker safety violations',
-      'caste discrimination deaths',
-      'overlooked tragedies',
-      'temporary truths',
-      'news that disappeared'
+      'news archive',
+      'news documentation',
+      'archived news stories',
+      'news repository',
+      'historical news',
+      'news database',
+      'documented events',
+      'news collection',
+      'event archive',
+      'news timeline',
+      'documented stories',
+      'news chronicles',
+      'archival journalism',
+      'news records',
+      'event documentation',
+      'news preservation',
+      'story archive',
+      'news registry',
+      'documented incidents',
+      'news inventory',
+      'archived events',
+      'news catalog',
+      'event registry',
+      'news storage',
+      'documented reports',
+      'news compilation',
+      'event records',
+      'news aggregation',
+      'documented news',
+      'news updates archive'
     ],
     authors: [{ name: 'DEADLINE', url: baseUrl }],
     creator: 'DEADLINE',
@@ -303,7 +313,7 @@ export default async function DeadlineEventsPage() {
                 <a href="/policies" className="text-black hover:underline" title="Our Policies">Policies</a>
                 <a href="/donate" className="text-black hover:underline" title="Support Our Work">Donate</a>
               </nav>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 font-mono">
                 © {new Date().getFullYear()} DEADLINE. Documenting lives that matter.
               </p>
             </div>

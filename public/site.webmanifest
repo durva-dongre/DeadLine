@@ -1,7 +1,7 @@
 {
-  "name": "Deadline News",
+  "name": "Deadline",
   "short_name": "Deadline",
-  "description": "Breaking news, headlines, and in-depth stories in real time.",
+  "description": "Mueseum of temporary truths.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

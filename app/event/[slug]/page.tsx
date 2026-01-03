@@ -237,12 +237,11 @@ function truncateText(text: string, maxLength: number): string {
 
 function generateDynamicKeywords(eventDetails: EventDetails): string[] {
   const baseKeywords = [
-    'museum of temporary truths',
-    'forgotten news',
-    'abandoned case',
-    'justice delayed',
-    'unreported story',
-    'DEADLINE documentation',
+    'news archive',
+    'documented event',
+    'news documentation',
+    'archived story',
+    'event chronicle',
     eventDetails.location,
     `${eventDetails.location} news`,
     `${eventDetails.location} incident`,
@@ -257,19 +256,19 @@ function generateDynamicKeywords(eventDetails: EventDetails): string[] {
   baseKeywords.push(...headlineWords);
 
   if (eventDetails.victims?.individuals?.length) {
-    baseKeywords.push('victim advocacy', 'justice for victims', 'victim stories');
+    baseKeywords.push('documented victims', 'archived case', 'news record');
   }
   if (eventDetails.victims?.groups?.length) {
-    baseKeywords.push('marginalized communities', 'systemic injustice', 'community impact');
+    baseKeywords.push('community documentation', 'archived news', 'event registry');
   }
 
   if (eventDetails.accused?.individuals?.length || eventDetails.accused?.organizations?.length) {
-    baseKeywords.push('accountability', 'alleged perpetrators', 'investigation');
+    baseKeywords.push('documented case', 'news archive', 'event documentation');
   }
 
   if (eventDetails.incident_date) {
     const year = new Date(eventDetails.incident_date).getFullYear();
-    baseKeywords.push(`${year} incident`, `${year} news`);
+    baseKeywords.push(`${year} incident`, `${year} news archive`);
   }
 
   return [...new Set(baseKeywords)];
@@ -733,7 +732,7 @@ export default async function EventPage({ params }: Props) {
               <a href="/policies" className="text-xs font-normal text-white hover:underline transition-all duration-300 font-mono" title="DEADLINE Documentation Policies and Ethics">Policies</a>
               <a href="/donate" className="text-xs font-normal text-white hover:underline transition-all duration-300 font-mono" title="Support DEADLINE's Documentation Work">Donate</a>
             </nav>
-            <p className="text-center text-xs text-white opacity-70">
+            <p className="text-center text-xs text-white opacity-70 font-mono">
               © {new Date().getFullYear()} DEADLINE. Every life has a voice.
             </p>
           </div>
