@@ -202,8 +202,12 @@ export async function generateMetadata(): Promise<Metadata> {
     other: {
       'msapplication-TileColor': '#000000',
       'theme-color': '#ffffff',
-      'yandex-verification': process.env.NEXT_PUBLIC_YANDEX_VERIFICATION,
-      'msvalidate.01': process.env.NEXT_PUBLIC_BING_VERIFICATION,
+      ...(process.env.NEXT_PUBLIC_YANDEX_VERIFICATION && {
+        'yandex-verification': process.env.NEXT_PUBLIC_YANDEX_VERIFICATION,
+      }),
+      ...(process.env.NEXT_PUBLIC_BING_VERIFICATION && {
+        'msvalidate.01': process.env.NEXT_PUBLIC_BING_VERIFICATION,
+      }),
     }
   };
 }
